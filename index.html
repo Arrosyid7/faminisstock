@@ -164,6 +164,44 @@
   <div id="pembaca-qr-dummy"></div>
 
   <script>
+    // ===================================================================
+    // KONFIGURASI API -- WAJIB DIISI
+    // ===================================================================
+    // Isi dengan URL Web App hasil deploy Apps Script kamu, contoh:
+    // "https://script.google.com/macros/s/AKfycb..../exec"
+    // Cara dapatnya: buka project Apps Script -> Deploy -> New deployment ->
+    // Web app -> Execute as: Me, Who has access: Anyone -> Deploy -> salin URL-nya.
+    // Kalau kamu deploy ulang (bukan "Manage deployments" > edit versi lama),
+    // URL-nya akan BERUBAH, jadi ganti lagi di sini.
+    const URL_API = "https://script.google.com/macros/s/AKfycbzLrF8v3z6Jg3HiSQ1UrL7mTqdP6NqciiWNnVNCvvozmZ9hcuDvYG20Xy43NK6i4X0lVQ/exec";
+
+    /**
+     * Pengganti google.script.run. Memanggil Web App Apps Script lewat fetch(),
+     * mengirim nama aksi + daftar parameter (urut sesuai parameter fungsi aslinya di Code.gs),
+     * lalu mengembalikan Promise berisi HASIL ASLI dari fungsi tsb (bukan amplop {sukses,data}
+     * dari router -- itu sudah dibongkar otomatis di sini).
+     *
+     * Contoh pemakaian (pengganti pola withSuccessHandler/withFailureHandler):
+     *   panggilAPI('login', [u, p]).then(res => { ... }).catch(err => { ... });
+     */
+    function panggilAPI(aksi, params) {
+      return fetch(URL_API, {
+        method: 'POST',
+        // Sengaja TIDAK set header Content-Type ke application/json supaya browser mengirimnya
+        // sebagai "simple request" (text/plain) dan tidak memicu preflight OPTIONS -- Apps Script
+        // Web App tidak bisa menjawab preflight OPTIONS dengan benar.
+        body: JSON.stringify({ aksi: aksi, params: params || [] })
+      })
+        .then(r => {
+          if (!r.ok) throw new Error('Server tidak merespons (HTTP ' + r.status + ')');
+          return r.json();
+        })
+        .then(res => {
+          if (!res.sukses) throw new Error(res.pesan || 'Terjadi kesalahan di server.');
+          return res.data;
+        });
+    }
+
     let penggunaSaatIni = null;
     let daftarLokasiCache = [];
     let scannerBerkas = new Html5Qrcode("pembaca-qr-dummy");
@@ -248,7 +286,7 @@
       const p = document.getElementById('input-pin').value;
       if (!u || !p) return tampilkanPesan('Harap isi Username dan PIN!', false);
       tampilkanLoading(true, "Mencocokkan...");
-      google.script.run.withSuccessHandler(res => {
+      panggilAPI('login', [u, p]).then(res => {
         tampilkanLoading(false);
         if (res.sukses) {
           penggunaSaatIni = res;
@@ -257,10 +295,10 @@
         } else {
           tampilkanPesan(res.pesan, false);
         }
-      }).withFailureHandler(err => {
+      }).catch(err => {
         tampilkanLoading(false);
         tampilkanPesan('Sistem sibuk, coba lagi.', false);
-      }).prosesLogin(u, p);
+      });
     }
 
     function cobaPulihkanSesi() {
@@ -313,7 +351,7 @@
       ubahTampilanFormTipe();
 
       // Muat daftar lokasi untuk dropdown transfer
-      google.script.run.withSuccessHandler(daftarLokasi => {
+      panggilAPI('ambilDaftarLokasi', []).then(daftarLokasi => {
         daftarLokasiCache = daftarLokasi;
         const selDari = document.getElementById('input-dari-lokasi');
         const selKe = document.getElementById('input-ke-lokasi');
@@ -326,7 +364,7 @@
         } else {
           selDari.disabled = false;
         }
-      }).ambilDaftarLokasi();
+      }).catch(err => tampilkanPesan('Gagal memuat daftar lokasi.', false));
     }
 
     function ubahTampilanFormTipe() {
@@ -388,18 +426,16 @@
           document.getElementById('btn-simpan').disabled = false;
           return tampilkanPesan('Pilih lokasi asal dan tujuan!', false);
         }
-        google.script.run.withSuccessHandler(selesai).withFailureHandler(gagal)
-          .transferStok(sku, dari, ke, qty, penggunaSaatIni.username);
+        panggilAPI('transferStok', [sku, dari, ke, qty, penggunaSaatIni.username]).then(selesai).catch(gagal);
         return;
       }
 
-      google.script.run.withSuccessHandler(selesai).withFailureHandler(gagal)
-        .tambahTransaksi(sku, penggunaSaatIni.id_lokasi, qty, tipe, "App", penggunaSaatIni.username);
+      panggilAPI('tambahTransaksi', [sku, penggunaSaatIni.id_lokasi, qty, tipe, "App", penggunaSaatIni.username]).then(selesai).catch(gagal);
     }
 
     function muatLaporanStok() {
       tampilkanLoading(true, "Memuat laporan...");
-      google.script.run.withSuccessHandler(data => {
+      panggilAPI('ambilSemuaStok', []).then(data => {
         tampilkanLoading(false);
         const tbody = document.getElementById('tabel-laporan');
         tbody.innerHTML = '';
@@ -409,7 +445,10 @@
           tbody.innerHTML += `<tr class="bg-white border-b"><td class="px-4 py-3 text-[#4A3018]"><div class="uppercase font-bold">${sku}</div><div class="text-xs">${data[sku].detail.nama}</div></td><td class="px-4 py-3 text-center font-bold ${data[sku].Total < 0 ? 'text-red-600' : 'text-[#8B5A2B]'}">${data[sku].Total}</td></tr>`;
         }
         if (!ada) tbody.innerHTML = `<tr><td colspan="2" class="px-4 py-6 text-center text-[#6F4E37]">Belum ada data.</td></tr>`;
-      }).ambilSemuaStok();
+      }).catch(err => {
+        tampilkanLoading(false);
+        tampilkanPesan('Gagal memuat laporan.', false);
+      });
     }
 
     function gantiPeriode(periode) {
@@ -424,7 +463,7 @@
     }
 
     function muatProdukTerlaris() {
-      google.script.run.withSuccessHandler(data => {
+      panggilAPI('ambilProdukTerlaris', [periodeAktif]).then(data => {
         const ctx = document.getElementById('grafik-terlaris').getContext('2d');
         const label = data.map(d => d.nama);
         const nilai = data.map(d => d.qty);
@@ -440,18 +479,18 @@
             scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
           }
         });
-      }).ambilProdukTerlaris(periodeAktif);
+      }).catch(err => tampilkanPesan('Gagal memuat grafik produk terlaris.', false));
     }
 
     function kirimLaporanEmail() {
       tampilkanLoading(true, "Mengirim laporan ke email...");
-      google.script.run.withSuccessHandler(res => {
+      panggilAPI('kirimLaporanPDF', [periodeAktif]).then(res => {
         tampilkanLoading(false);
         tampilkanPesan(res.pesan, res.sukses);
-      }).withFailureHandler(err => {
+      }).catch(err => {
         tampilkanLoading(false);
         tampilkanPesan('Gagal mengirim laporan. Coba lagi.', false);
-      }).kirimLaporanPDF(periodeAktif);
+      });
     }
 
     function keluarSistem() {
