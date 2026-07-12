@@ -1,0 +1,498 @@
+// ID Spreadsheet Database.
+// PENTING: ganti string di bawah ini dengan ID Spreadsheet database katalog Faminis Barokah kamu.
+// Caranya: buka Google Sheets-nya, salin bagian ID dari URL-nya.
+// Contoh URL: https://docs.google.com/spreadsheets/d/ID_ADA_DI_BAGIAN_INI/edit
+// (Sebelumnya kode ini pakai SpreadsheetApp.getActiveSpreadsheet(), yang HANYA jalan kalau skrip
+// ditempel langsung di dalam Spreadsheet lewat Extensions > Apps Script. Kalau skrip berdiri sendiri
+// di script.google.com, itu mengembalikan null dan bikin seluruh sistem gagal total. ID yang
+// di-hardcode ini aman untuk kedua skenario.)
+const SPREADSHEET_ID = "TEMPEL_ID_SPREADSHEET_ANDA_DI_SINI";
+
+// GANTI dengan email owner yang akan menerima laporan PDF otomatis
+const EMAIL_OWNER = "zanuarharun7@gmail.com";
+
+function getDb() {
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
+// ==========================================
+// FUNGSI SETUP OTOMATIS (JALANKAN SEKALI)
+// ==========================================
+function inisialisasiSistem() {
+  const ss = getDb();
+
+  // Sheet "Produk" (katalog asli, dipakai juga oleh website) -- TIDAK dibuat ulang / ditimpa
+  // headernya kalau sudah ada data. Hanya ditambahkan kolom "Stok_RealTime" kalau belum ada.
+  pastikanSheetProdukSiap(ss);
+
+  // Sheet-sheet sistem stok -- aman dibuat/diperbarui otomatis
+  const strukturSheetSistem = {
+    'Lokasi': ['ID_Lokasi', 'Nama Lokasi', 'Tipe'],
+    'Pengguna': ['Username', 'Nama Lengkap', 'PIN', 'Peran', 'ID_Lokasi', 'Status'],
+    'Barang_Masuk': ['Waktu', 'ID_Transaksi', 'SKU', 'ID_Lokasi', 'Qty', 'Tipe_Transaksi', 'Keterangan', 'Pengguna'],
+    'Barang_Keluar': ['Waktu', 'ID_Transaksi', 'SKU', 'ID_Lokasi', 'Qty', 'Tipe_Transaksi', 'Keterangan', 'Pengguna'],
+    'Transfer_Stok': ['ID_Transfer', 'Tanggal', 'Dari_Lokasi', 'Ke_Lokasi', 'SKU', 'Qty', 'Status', 'Tanggal_Disetujui']
+  };
+
+  for (const namaSheet in strukturSheetSistem) {
+    let sheet = ss.getSheetByName(namaSheet);
+    const headerBaku = strukturSheetSistem[namaSheet];
+
+    if (!sheet) {
+      sheet = ss.insertSheet(namaSheet);
+      sheet.getRange(1, 1, 1, headerBaku.length).setValues([headerBaku]);
+    } else if (namaSheet === 'Pengguna' && sheet.getLastColumn() < 6) {
+      // Migrasi skema lama -> baru, khusus sheet Pengguna
+      sheet.clear();
+      sheet.getRange(1, 1, 1, headerBaku.length).setValues([headerBaku]);
+    } else if (sheet.getLastRow() === 0) {
+      // Sheet sudah ada tapi kosong total -> pasang header
+      sheet.getRange(1, 1, 1, headerBaku.length).setValues([headerBaku]);
+    }
+    sheet.getRange(1, 1, 1, headerBaku.length).setFontWeight("bold").setBackground("#EEDDC8");
+  }
+
+  // Data Lokasi awal (hanya kalau sheet baru/kosong, tidak menimpa data yang sudah ada)
+  const sheetLokasi = ss.getSheetByName('Lokasi');
+  if (sheetLokasi.getLastRow() <= 1) {
+    const dataLokasi = [
+      ['TOKO', 'Gudang Pusat / Toko Utama', 'Pusat'],
+      ['RUKO1', 'Ruko Klewer 1', 'Cabang'],
+      ['RUKO2', 'Ruko Klewer 2', 'Cabang'],
+      ['RUKO3', 'Ruko Klewer 3', 'Cabang'],
+      ['RUKO4', 'Ruko Klewer 4', 'Cabang']
+    ];
+    sheetLokasi.getRange(2, 1, dataLokasi.length, 3).setValues(dataLokasi);
+  }
+
+  // Data Pengguna awal (hanya kalau sheet baru/kosong)
+  const sheetPengguna = ss.getSheetByName('Pengguna');
+  if (sheetPengguna.getLastRow() <= 1) {
+    const dataPengguna = [
+      ['master', 'Administrator Master', '123456', 'master', 'SEMUA', 'Aktif'],
+      ['owner', 'Pemilik Faminis Barokah', '123456', 'owner', 'SEMUA', 'Aktif'],
+      ['toko', 'Kasir Gudang Pusat', '123456', 'kasir', 'TOKO', 'Aktif'],
+      ['ruko1', 'Kasir Ruko 1', '123456', 'kasir', 'RUKO1', 'Aktif'],
+      ['ruko2', 'Kasir Ruko 2', '123456', 'kasir', 'RUKO2', 'Aktif'],
+      ['ruko3', 'Kasir Ruko 3', '123456', 'kasir', 'RUKO3', 'Aktif'],
+      ['ruko4', 'Kasir Ruko 4', '123456', 'kasir', 'RUKO4', 'Aktif']
+    ];
+    sheetPengguna.getRange(2, 1, dataPengguna.length, 6).setValues(dataPengguna);
+  }
+
+  // CATATAN PENTING: versi sebelumnya punya loop yang MENGHAPUS semua sheet di luar daftar inti.
+  // Ini SANGAT BERBAHAYA kalau dijalankan di Spreadsheet yang sama dengan katalog website, karena
+  // akan menghapus sheet Blog/Promo/Pesanan/Kategori/Banner. Loop itu sudah dibuang di versi ini.
+
+  Logger.log("Setup selesai! Sheet 'Produk' tidak diubah (memakai data katalog asli Anda).");
+}
+
+/**
+ * Memastikan sheet "Produk" siap dipakai TANPA merusak data katalog asli.
+ * - Kalau sheet belum ada sama sekali -> dibuat baru dengan skema katalog standar.
+ * - Kalau sheet SUDAH ADA (kemungkinan besar berisi data katalog asli website) -> header &
+ *   datanya TIDAK disentuh sama sekali, hanya dipastikan ada kolom "Stok_RealTime" di ujung kanan.
+ */
+function pastikanSheetProdukSiap(ss) {
+  let sheet = ss.getSheetByName('Produk');
+  const headerKatalogAsli = ['ID', 'Kategori', 'Nama', 'Deskripsi', 'Harga', 'Gambar', 'Warna', 'Ukuran', 'Stok', 'Bahan', 'Harga Grosir'];
+
+  if (!sheet) {
+    sheet = ss.insertSheet('Produk');
+    sheet.getRange(1, 1, 1, headerKatalogAsli.length).setValues([headerKatalogAsli]);
+    sheet.getRange(1, 1, 1, headerKatalogAsli.length).setFontWeight("bold").setBackground("#EEDDC8");
+  }
+
+  const lastCol = sheet.getLastColumn();
+  const headers = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  const punyaStokRealTime = headers.some(h => h.toString().trim() === 'Stok_RealTime');
+  if (!punyaStokRealTime) {
+    sheet.getRange(1, (lastCol || headerKatalogAsli.length) + 1).setValue('Stok_RealTime')
+      .setFontWeight("bold").setBackground("#EEDDC8");
+  }
+}
+
+// ==========================================
+// 1. ROUTING & ENTRY POINT
+// ==========================================
+function doGet(e) {
+  if (e && e.parameter && e.parameter.api === 'stok') {
+    return ContentService.createTextOutput(JSON.stringify(ambilSemuaStok()))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  // PENTING: file HTML utama harus bernama persis "Index" di Apps Script Editor
+  // (case-sensitive), karena createHtmlOutputFromFile('Index') mencarinya dengan nama itu.
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle('Faminis Barokah System')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+}
+
+// ==========================================
+// 2. OTENTIKASI / LOGIN
+// ==========================================
+function prosesLogin(username, pin) {
+  const ss = getDb();
+  const sheet = ss.getSheetByName('Pengguna');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === username && data[i][2].toString() === pin) {
+      if (data[i][5].toString().toUpperCase() !== 'AKTIF') {
+        return { sukses: false, pesan: 'Akun dinonaktifkan. Hubungi Master.' };
+      }
+      return {
+        sukses: true,
+        namaLengkap: data[i][1],
+        peran: data[i][3],
+        id_lokasi: data[i][4],
+        username: username
+      };
+    }
+  }
+  return { sukses: false, pesan: 'Username atau PIN salah!' };
+}
+
+/**
+ * Verifikasi bahwa akun masih AKTIF, dicek ulang setiap kali ada transaksi (bukan cuma saat
+ * login). Ini mencegah HP yang sudah lama login tetap bisa transaksi meski akunnya baru
+ * dinonaktifkan Admin Master.
+ */
+function pastikanPenggunaAktif(username) {
+  const ss = getDb();
+  const sheet = ss.getSheetByName('Pengguna');
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === username) {
+      return data[i][5].toString().toUpperCase() === 'AKTIF';
+    }
+  }
+  return false;
+}
+
+// ==========================================
+// 3. MASTER LOKASI
+// ==========================================
+function ambilDaftarLokasi() {
+  const ss = getDb();
+  const sheet = ss.getSheetByName('Lokasi');
+  const data = sheet.getDataRange().getValues();
+  const hasil = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0]) hasil.push({ id: data[i][0], nama: data[i][1], tipe: data[i][2] });
+  }
+  return hasil;
+}
+
+// ==========================================
+// 4. INTI: AMBIL STOK
+// ==========================================
+function ambilSemuaStok() {
+  const ss = getDb();
+  const sheetMasuk = ss.getSheetByName('Barang_Masuk');
+  const sheetKeluar = ss.getSheetByName('Barang_Keluar');
+  const produk = ss.getSheetByName('Produk').getDataRange().getValues();
+
+  // Kolom sheet "Produk" (skema katalog asli):
+  // ID(0), Kategori(1), Nama(2), Deskripsi(3), Harga(4)=ecer, Gambar(5), Warna(6), Ukuran(7),
+  // Stok(8)=kolom lama, Bahan(9), Harga Grosir(10)
+  let petaProduk = {};
+  for (let i = 1; i < produk.length; i++) {
+    const sku = produk[i][0] ? produk[i][0].toString().trim() : "";
+    if (!sku) continue;
+    petaProduk[sku] = {
+      nama: produk[i][2],
+      kategori: produk[i][1],
+      h_ecer: produk[i][4],
+      h_grosir: produk[i][10]
+    };
+  }
+
+  let dataStok = {};
+
+  function prosesData(dataBuku, isMasuk) {
+    if (!dataBuku || dataBuku.length < 2) return;
+    for (let i = 1; i < dataBuku.length; i++) {
+      let sku = dataBuku[i][2] ? dataBuku[i][2].toString().trim() : "";
+      let lokasi = dataBuku[i][3];
+      let qty = parseFloat(dataBuku[i][4]) || 0;
+      if (!sku || !lokasi) continue;
+
+      let qtyAktual = isMasuk ? Math.abs(qty) : -Math.abs(qty);
+
+      if (!dataStok[sku]) dataStok[sku] = { detail: petaProduk[sku] || { nama: "Produk Tidak Dikenal", kategori: "-" }, Total: 0 };
+      if (!dataStok[sku][lokasi]) dataStok[sku][lokasi] = 0;
+
+      dataStok[sku][lokasi] += qtyAktual;
+      dataStok[sku].Total += qtyAktual;
+    }
+  }
+
+  if (sheetMasuk) prosesData(sheetMasuk.getDataRange().getValues(), true);
+  if (sheetKeluar) prosesData(sheetKeluar.getDataRange().getValues(), false);
+
+  return dataStok;
+}
+
+// ==========================================
+// 5. INTI: TAMBAH TRANSAKSI (Masuk / Keluar biasa)
+// ==========================================
+function tambahTransaksi(sku, id_lokasi, qty, tipe, keterangan, pengguna) {
+  if (!pastikanPenggunaAktif(pengguna)) {
+    return { sukses: false, pesan: 'Akun tidak aktif. Hubungi Admin Master.' };
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const ss = getDb();
+
+    // VALIDASI KEAMANAN: hanya TOKO/master yang boleh terima barang BARU dari luar (restok).
+    // Barang hasil TRANSFER internal (MASUK_TRANSFER) tidak kena aturan ini -- lihat transferStok().
+    if (tipe === 'MASUK_RESTOK' && id_lokasi !== 'TOKO' && id_lokasi !== 'SEMUA') {
+      throw new Error("Ditolak! Ruko tidak bisa menerima barang baru dari luar secara langsung.");
+    }
+
+    let namaSheet = tipe.indexOf('MASUK') !== -1 ? 'Barang_Masuk' : 'Barang_Keluar';
+    const sheet = ss.getSheetByName(namaSheet);
+
+    if (!sheet) throw new Error("Sheet " + namaSheet + " tidak ditemukan!");
+
+    const waktu = new Date(); // simpan sebagai objek Date asli (bukan teks) supaya laporan harian/bulanan/tahunan akurat
+    const idTrx = "TRX-" + new Date().getTime();
+    const qtyAbsolut = Math.abs(qty);
+
+    sheet.appendRow([waktu, idTrx, sku, id_lokasi, qtyAbsolut, tipe, keterangan, pengguna]);
+    SpreadsheetApp.flush();
+
+    return { sukses: true, pesan: 'Transaksi berhasil disimpan!' };
+  } catch (e) {
+    return { sukses: false, pesan: e.message || 'Sistem sibuk. Silakan simpan lagi.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ==========================================
+// 6. INTI: TRANSFER STOK (Toko->Ruko atau Ruko->Ruko)
+// ==========================================
+function transferStok(sku, dariLokasi, keLokasi, qty, pengguna) {
+  if (!pastikanPenggunaAktif(pengguna)) {
+    return { sukses: false, pesan: 'Akun tidak aktif. Hubungi Admin Master.' };
+  }
+  if (!dariLokasi || !keLokasi) {
+    return { sukses: false, pesan: 'Pilih lokasi asal dan tujuan!' };
+  }
+  if (dariLokasi === keLokasi) {
+    return { sukses: false, pesan: 'Lokasi asal dan tujuan tidak boleh sama!' };
+  }
+  qty = Math.abs(parseFloat(qty)) || 0;
+  if (qty <= 0) {
+    return { sukses: false, pesan: 'Jumlah harus lebih dari 0!' };
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const ss = getDb();
+
+    // Validasi stok cukup di lokasi asal sebelum transfer diproses
+    const stokSaatIni = ambilSemuaStok();
+    const stokAsal = (stokSaatIni[sku] && stokSaatIni[sku][dariLokasi]) || 0;
+    if (stokAsal < qty) {
+      return { sukses: false, pesan: `Stok ${sku} di ${dariLokasi} tidak cukup (tersedia: ${stokAsal}).` };
+    }
+
+    const waktu = new Date();
+    const idTransfer = "TRF-" + new Date().getTime();
+
+    // Catat KELUAR di lokasi asal + MASUK di lokasi tujuan (sepasang, id transfer sama untuk audit)
+    ss.getSheetByName('Barang_Keluar').appendRow([waktu, idTransfer, sku, dariLokasi, qty, 'KELUAR_TRANSFER', `Transfer ke ${keLokasi}`, pengguna]);
+    ss.getSheetByName('Barang_Masuk').appendRow([waktu, idTransfer, sku, keLokasi, qty, 'MASUK_TRANSFER', `Transfer dari ${dariLokasi}`, pengguna]);
+
+    // Catat log ringkas transfer untuk audit/riwayat
+    ss.getSheetByName('Transfer_Stok').appendRow([idTransfer, waktu, dariLokasi, keLokasi, sku, qty, 'Selesai', waktu]);
+
+    SpreadsheetApp.flush();
+    return { sukses: true, pesan: `Transfer ${qty} pcs ${sku} dari ${dariLokasi} ke ${keLokasi} berhasil!` };
+  } catch (e) {
+    return { sukses: false, pesan: e.message || 'Sistem sibuk. Silakan coba lagi.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ==========================================
+// 7. ANALISIS: PRODUK TERLARIS (Harian / Bulanan / Tahunan)
+// ==========================================
+function ambilProdukTerlaris(periode) {
+  const ss = getDb();
+  const sheetKeluar = ss.getSheetByName('Barang_Keluar');
+  const produk = ss.getSheetByName('Produk').getDataRange().getValues();
+
+  let petaNama = {};
+  for (let i = 1; i < produk.length; i++) {
+    const sku = produk[i][0] ? produk[i][0].toString().trim() : "";
+    if (sku) petaNama[sku] = produk[i][2];
+  }
+
+  const sekarang = new Date();
+  let batasWaktu;
+  if (periode === 'harian') {
+    batasWaktu = new Date(sekarang.getFullYear(), sekarang.getMonth(), sekarang.getDate());
+  } else if (periode === 'bulanan') {
+    batasWaktu = new Date(sekarang.getFullYear(), sekarang.getMonth(), 1);
+  } else {
+    batasWaktu = new Date(sekarang.getFullYear(), 0, 1);
+  }
+
+  const data = sheetKeluar ? sheetKeluar.getDataRange().getValues() : [];
+  let rekap = {};
+  for (let i = 1; i < data.length; i++) {
+    const tipe = data[i][5];
+    // Hanya hitung penjualan asli (ecer/grosir), bukan mutasi transfer antar lokasi
+    if (tipe !== 'KELUAR_ECER' && tipe !== 'KELUAR_GROSIR') continue;
+
+    const waktuBaris = new Date(data[i][0]);
+    if (isNaN(waktuBaris.getTime()) || waktuBaris < batasWaktu) continue;
+
+    const sku = data[i][2] ? data[i][2].toString().trim() : "";
+    const qty = parseFloat(data[i][4]) || 0;
+    if (!sku) continue;
+
+    if (!rekap[sku]) rekap[sku] = { sku: sku, nama: petaNama[sku] || sku, qty: 0 };
+    rekap[sku].qty += qty;
+  }
+
+  return Object.keys(rekap).map(k => rekap[k]).sort((a, b) => b.qty - a.qty).slice(0, 8);
+}
+
+// ==========================================
+// 8. DASHBOARD GRAFIK DI SPREADSHEET
+// ==========================================
+function perbaruiDashboardSheet() {
+  const ss = getDb();
+  let sheet = ss.getSheetByName('Dashboard');
+  if (!sheet) {
+    sheet = ss.insertSheet('Dashboard');
+  } else {
+    sheet.getCharts().forEach(c => sheet.removeChart(c));
+    sheet.clear();
+  }
+
+  sheet.getRange(1, 1).setValue('Dashboard Produk Terlaris - Faminis Barokah').setFontWeight('bold').setFontSize(14);
+  sheet.getRange(2, 1).setValue('Diperbarui otomatis: ' + new Date().toLocaleString('id-ID'));
+
+  const daftarPeriode = [['harian', 'Harian'], ['bulanan', 'Bulanan'], ['tahunan', 'Tahunan']];
+  let startRow = 4;
+
+  daftarPeriode.forEach(function(p) {
+    const periode = p[0], label = p[1];
+    const data = ambilProdukTerlaris(periode);
+
+    sheet.getRange(startRow, 1).setValue(`Produk Terlaris (${label})`).setFontWeight('bold');
+    sheet.getRange(startRow + 1, 1, 1, 2).setValues([['Nama Produk', 'Qty Terjual']]).setFontWeight('bold').setBackground('#EEDDC8');
+
+    const rows = data.map(d => [d.nama, d.qty]);
+    if (rows.length > 0) {
+      sheet.getRange(startRow + 2, 1, rows.length, 2).setValues(rows);
+
+      const chart = sheet.newChart()
+        .setChartType(Charts.ChartType.BAR)
+        .addRange(sheet.getRange(startRow + 2, 1, rows.length, 2))
+        .setPosition(startRow, 4, 0, 0)
+        .setOption('title', `Produk Terlaris - ${label}`)
+        .setOption('width', 500)
+        .setOption('height', 260)
+        .build();
+      sheet.insertChart(chart);
+    }
+    startRow += Math.max(rows.length, 1) + 16; // beri ruang untuk grafik sebelum blok berikutnya
+  });
+
+  sheet.autoResizeColumns(1, 2);
+}
+
+// ==========================================
+// 9. LAPORAN PDF OTOMATIS (dengan grafik)
+// ==========================================
+function buatGrafikPNG(dataProduk, judul) {
+  if (!dataProduk || dataProduk.length === 0) return null;
+  const dataTable = Charts.newDataTable()
+    .addColumn(Charts.ColumnType.STRING, 'Produk')
+    .addColumn(Charts.ColumnType.NUMBER, 'Qty');
+  dataProduk.forEach(d => dataTable.addRow([d.nama, d.qty]));
+
+  const chart = Charts.newBarChart()
+    .setDataTable(dataTable)
+    .setTitle(judul)
+    .setDimensions(520, 300)
+    .setColors(['#8B5A2B'])
+    .build();
+
+  return chart.getAs('image/png');
+}
+
+/**
+ * Kirim laporan PDF ke email owner. periode: 'harian' | 'bulanan' | 'tahunan' (default 'bulanan')
+ */
+function kirimLaporanPDF(periode) {
+  periode = periode || 'bulanan';
+  const dataStok = ambilSemuaStok();
+  const daftarLokasi = ambilDaftarLokasi();
+  const produkTerlaris = ambilProdukTerlaris(periode);
+  const grafikBlob = buatGrafikPNG(produkTerlaris, `Produk Terlaris (${periode})`);
+  const grafikBase64 = grafikBlob ? Utilities.base64Encode(grafikBlob.getBytes()) : null;
+
+  const template = HtmlService.createTemplateFromFile('TemplatePdf');
+  template.data = dataStok;
+  template.daftarLokasi = daftarLokasi;
+  template.produkTerlaris = produkTerlaris;
+  template.grafikBase64 = grafikBase64;
+  template.periode = periode;
+
+  const htmlContent = template.evaluate().getContent();
+  const blob = Utilities.newBlob(htmlContent, 'text/html', 'Laporan.html');
+  const pdf = blob.getAs('application/pdf');
+  pdf.setName(`Laporan_Stok_Faminis_${periode}_${new Date().toLocaleDateString('id-ID')}.pdf`);
+
+  MailApp.sendEmail({
+    to: EMAIL_OWNER,
+    subject: `Laporan Stok Faminis Barokah (${periode.charAt(0).toUpperCase() + periode.slice(1)})`,
+    body: "Halo Owner, terlampir adalah laporan stok Faminis Barokah.",
+    attachments: [pdf]
+  });
+
+  return { sukses: true, pesan: "Laporan berhasil dikirim ke email owner!" };
+}
+
+function triggerLaporanBulanan() {
+  kirimLaporanPDF('bulanan');
+}
+function triggerLaporanTahunan() {
+  kirimLaporanPDF('tahunan');
+}
+
+/**
+ * Mendaftarkan trigger otomatis: laporan bulanan, laporan tahunan, dan pembaruan Dashboard
+ * grafik tiap jam. JALANKAN FUNGSI INI SEKALI SAJA di editor.
+ */
+function aturTriggerOtomatis() {
+  const semuaTrigger = ScriptApp.getProjectTriggers();
+  const namaFungsi = ['triggerLaporanBulanan', 'triggerLaporanTahunan', 'perbaruiDashboardSheet'];
+  semuaTrigger.forEach(t => {
+    if (namaFungsi.indexOf(t.getHandlerFunction()) !== -1) {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+
+  // Laporan Bulanan: tanggal 1 jam 06:00 pagi
+  ScriptApp.newTrigger('triggerLaporanBulanan').timeBased().onMonthDay(1).atHour(6).create();
+
+  // Laporan Tahunan: 31 Desember jam 23:00 malam
+  ScriptApp.newTrigger('triggerLaporanTahunan').timeBased().onMonthDay(31).atHour(23).create();
+
+  // Dashboard grafik di spreadsheet: refresh tiap jam
+  ScriptApp.newTrigger('perbaruiDashboardSheet').timeBased().everyHours(1).create();
+
+  Logger.log('Trigger otomatis berhasil diatur!');
+}

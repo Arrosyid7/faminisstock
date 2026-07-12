@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; color: #3E2723; margin: 24px; }
+    .header { text-align: center; border-bottom: 3px solid #4A3018; padding-bottom: 12px; margin-bottom: 20px; }
+    .header h1 { color: #4A3018; margin: 0 0 4px 0; font-size: 22px; }
+    .header p { margin: 0; color: #6F4E37; font-size: 12px; }
+
+    .ringkasan { display: table; width: 100%; margin-bottom: 10px; border-spacing: 8px 0; }
+    .kotak-ringkasan { display: table-cell; width: 33%; text-align: center; padding: 12px; background: #EEDDC8; border-radius: 6px; }
+    .kotak-ringkasan .angka { font-size: 22px; font-weight: bold; color: #4A3018; }
+    .kotak-ringkasan .label { font-size: 11px; color: #6F4E37; margin-top: 2px; }
+
+    h2 { color: #4A3018; font-size: 15px; border-bottom: 1px solid #D6C5B3; padding-bottom: 4px; margin-top: 26px; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+    th, td { border: 1px solid #D6C5B3; padding: 6px 8px; text-align: left; }
+    th { background-color: #EEDDC8; color: #4A3018; }
+    td.angka, th.angka { text-align: center; }
+
+    .grafik { text-align: center; margin: 14px 0 20px 0; }
+    .grafik img { max-width: 100%; border: 1px solid #EEDDC8; border-radius: 6px; padding: 6px; }
+
+    .footer { margin-top: 30px; font-size: 10px; color: #6F4E37; text-align: center; border-top: 1px solid #D6C5B3; padding-top: 8px; }
+    .catatan { margin-top: 24px; font-size: 11px; color: #6F4E37; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Laporan Stok Faminis Barokah</h1>
+    <p>Periode: <?= periode.charAt(0).toUpperCase() + periode.slice(1) ?> &middot; Tanggal Cetak: <?= new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) ?></p>
+  </div>
+
+  <?
+    var daftarSku = Object.keys(data);
+    var totalSku = daftarSku.length;
+    var totalStok = 0;
+    daftarSku.forEach(function(s) { totalStok += data[s].Total; });
+  ?>
+
+  <div class="ringkasan">
+    <div class="kotak-ringkasan">
+      <div class="angka"><?= totalSku ?></div>
+      <div class="label">Jumlah SKU Tercatat</div>
+    </div>
+    <div class="kotak-ringkasan">
+      <div class="angka"><?= totalStok ?></div>
+      <div class="label">Total Stok Seluruh Lokasi (pcs)</div>
+    </div>
+    <div class="kotak-ringkasan">
+      <div class="angka"><?= produkTerlaris.length ?></div>
+      <div class="label">Produk Terlaris Tercatat</div>
+    </div>
+  </div>
+
+  <? if (grafikBase64) { ?>
+  <h2>Grafik Produk Terlaris</h2>
+  <div class="grafik"><img src="data:image/png;base64,<?= grafikBase64 ?>"></div>
+  <? } ?>
+
+  <h2>Detail Stok per Lokasi</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID Produk</th>
+        <th>Nama Produk</th>
+        <? daftarLokasi.forEach(function(l) { ?>
+        <th class="angka"><?= l.id ?></th>
+        <? }); ?>
+        <th class="angka">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <? daftarSku.forEach(function(sku) { ?>
+      <tr>
+        <td><?= sku ?></td>
+        <td><?= data[sku].detail.nama ?></td>
+        <? daftarLokasi.forEach(function(l) { ?>
+        <td class="angka"><?= data[sku][l.id] || 0 ?></td>
+        <? }); ?>
+        <td class="angka"><b><?= data[sku].Total ?></b></td>
+      </tr>
+      <? }); ?>
+    </tbody>
+  </table>
+
+  <p class="catatan">*Kolom bernilai negatif menandakan barang keluar lebih banyak tercatat daripada barang masuk di lokasi tersebut -- perlu dicek ulang lewat Stock Opname.</p>
+
+  <div class="footer">Faminis Barokah &middot; Pasar Klewer, Solo &middot; Laporan dibuat otomatis oleh Sistem Manajemen Stok</div>
+</body>
+</html>
