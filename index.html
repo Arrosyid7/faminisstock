@@ -96,6 +96,21 @@
           </div>
         </div>
 
+        <div id="blok-restok" class="hidden mb-4 space-y-3 bg-[#EEDDC8] p-3 rounded-lg border border-[#D6C5B3]">
+          <div>
+            <label class="block text-[10px] font-bold text-[#6F4E37] uppercase mb-1">Sumber Barang</label>
+            <select id="input-sumber-masuk" onchange="ubahTampilanSumberMasuk()" class="w-full p-3 border border-[#D6C5B3] rounded-lg bg-white font-semibold text-[#3E2723]">
+              <option value="Penjahit">Penjahit (Buat Sendiri)</option>
+              <option value="Supplier">Supplier / Kulakan Luar</option>
+            </select>
+          </div>
+          <div id="blok-nama-supplier" class="hidden">
+            <label class="block text-[10px] font-bold text-[#6F4E37] uppercase mb-1">Nama Supplier</label>
+            <input type="text" id="input-nama-supplier" list="daftar-supplier-list" placeholder="Ketik atau pilih supplier" class="w-full p-3 border border-[#D6C5B3] rounded-lg bg-white font-semibold text-[#3E2723]">
+            <datalist id="daftar-supplier-list"></datalist>
+          </div>
+        </div>
+
         <button onclick="simpanTransaksi()" id="btn-simpan" class="w-full bg-[#4A3018] text-white p-4 rounded-xl font-bold shadow-md hover:bg-[#2C1C0E] transition-transform active:scale-95 text-lg">SIMPAN DATA</button>
       </div>
     </div>
@@ -230,7 +245,6 @@
         gain.connect(ctx.destination);
 
         if (sukses) {
-          // Bunyi sukses: 2 nada naik, ceria
           osc.type = 'sine';
           osc.frequency.setValueAtTime(880, ctx.currentTime);
           osc.frequency.setValueAtTime(1318, ctx.currentTime + 0.09);
@@ -239,7 +253,6 @@
           osc.start(ctx.currentTime);
           osc.stop(ctx.currentTime + 0.25);
         } else {
-          // Bunyi gagal: nada turun, lebih rendah dan tegas
           osc.type = 'square';
           osc.frequency.setValueAtTime(220, ctx.currentTime);
           osc.frequency.setValueAtTime(150, ctx.currentTime + 0.15);
@@ -249,7 +262,7 @@
           osc.stop(ctx.currentTime + 0.35);
         }
       } catch (e) {
-        // Kalau browser tidak dukung Web Audio API, abaikan saja -- tidak boleh mengganggu fungsi utama
+        // Kalau browser tidak dukung Web Audio API, abaikan saja
       }
     }
 
@@ -365,11 +378,24 @@
           selDari.disabled = false;
         }
       }).catch(err => tampilkanPesan('Gagal memuat daftar lokasi.', false));
+
+      // Muat daftar supplier yang sudah pernah tercatat, untuk autocomplete di form restok
+      panggilAPI('ambilDaftarSupplier', []).then(daftarSupplier => {
+        const dl = document.getElementById('daftar-supplier-list');
+        dl.innerHTML = daftarSupplier.map(s => `<option value="${s}"></option>`).join('');
+      }).catch(err => { /* diamkan saja -- autocomplete opsional, tidak boleh mengganggu login */ });
     }
 
     function ubahTampilanFormTipe() {
       const tipe = document.getElementById('input-tipe').value;
       document.getElementById('blok-transfer').classList.toggle('hidden', tipe !== 'TRANSFER');
+      document.getElementById('blok-restok').classList.toggle('hidden', tipe !== 'MASUK_RESTOK');
+      if (tipe === 'MASUK_RESTOK') ubahTampilanSumberMasuk();
+    }
+
+    function ubahTampilanSumberMasuk() {
+      const sumber = document.getElementById('input-sumber-masuk').value;
+      document.getElementById('blok-nama-supplier').classList.toggle('hidden', sumber !== 'Supplier');
     }
 
     function prosesFotoBarcode(event) {
@@ -408,6 +434,7 @@
           tampilkanPesan(res.pesan || 'Berhasil disimpan!');
           document.getElementById('input-sku').value = '';
           document.getElementById('input-qty').value = '';
+          document.getElementById('input-nama-supplier').value = '';
         } else {
           tampilkanPesan(res.pesan, false);
         }
@@ -427,6 +454,18 @@
           return tampilkanPesan('Pilih lokasi asal dan tujuan!', false);
         }
         panggilAPI('transferStok', [sku, dari, ke, qty, penggunaSaatIni.username]).then(selesai).catch(gagal);
+        return;
+      }
+
+      if (tipe === 'MASUK_RESTOK') {
+        const sumber = document.getElementById('input-sumber-masuk').value;
+        const namaSupplier = document.getElementById('input-nama-supplier').value.trim();
+        if (sumber === 'Supplier' && !namaSupplier) {
+          tampilkanLoading(false);
+          document.getElementById('btn-simpan').disabled = false;
+          return tampilkanPesan('Ketik atau pilih nama supplier-nya!', false);
+        }
+        panggilAPI('tambahTransaksi', [sku, penggunaSaatIni.id_lokasi, qty, tipe, "App", penggunaSaatIni.username, sumber, namaSupplier]).then(selesai).catch(gagal);
         return;
       }
 
