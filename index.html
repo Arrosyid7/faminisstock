@@ -138,10 +138,39 @@
         <button id="tab-tahunan" onclick="gantiPeriode('tahunan')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-[#EEDDC8] text-[#4A3018] transition-colors">Tahunan</button>
       </div>
 
+      <div class="text-xs font-bold text-[#6F4E37] uppercase tracking-wide mb-2">📦 Laporan Stok</div>
       <div class="bg-white rounded-xl shadow-md border border-[#D6C5B3] p-3 mb-5">
         <h3 class="font-bold text-sm text-[#4A3018] mb-2">Produk Paling Laku</h3>
         <div class="relative w-full" style="height:220px;">
           <canvas id="grafik-terlaris"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-md border border-[#D6C5B3] p-3 mb-5">
+        <h3 class="font-bold text-sm text-[#4A3018] mb-2">Ringkasan Penjualan</h3>
+        <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead class="text-[10px] text-[#FDF8F3] uppercase bg-[#6F4E37]"><tr><th class="px-2 py-2">Produk</th><th class="px-2 py-2">Lokasi</th><th class="px-2 py-2 text-center">Ecer</th><th class="px-2 py-2 text-center">Grosir</th><th class="px-2 py-2 text-center">Total</th></tr></thead><tbody id="tabel-penjualan" class="divide-y divide-[#EEDDC8]"></tbody></table></div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-md border border-[#D6C5B3] p-3 mb-5">
+        <h3 class="font-bold text-sm text-[#4A3018] mb-2">Ringkasan Barang Masuk</h3>
+        <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead class="text-[10px] text-[#FDF8F3] uppercase bg-[#6F4E37]"><tr><th class="px-2 py-2">Produk</th><th class="px-2 py-2">Lokasi</th><th class="px-2 py-2">Sumber</th><th class="px-2 py-2 text-center">Qty</th></tr></thead><tbody id="tabel-barang-masuk" class="divide-y divide-[#EEDDC8]"></tbody></table></div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-md border border-[#D6C5B3] p-3 mb-5">
+        <h3 class="font-bold text-sm text-[#4A3018] mb-2">Ringkasan Transfer</h3>
+        <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead class="text-[10px] text-[#FDF8F3] uppercase bg-[#6F4E37]"><tr><th class="px-2 py-2">Produk</th><th class="px-2 py-2">Dari</th><th class="px-2 py-2">Ke</th><th class="px-2 py-2 text-center">Qty</th></tr></thead><tbody id="tabel-transfer" class="divide-y divide-[#EEDDC8]"></tbody></table></div>
+      </div>
+
+      <div class="text-xs font-bold text-[#6F4E37] uppercase tracking-wide mt-2 mb-2">💰 Laporan Keuangan Penjualan</div>
+      <div class="bg-white rounded-xl shadow-md border border-[#D6C5B3] p-3 mb-5">
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="text-[10px] text-[#FDF8F3] uppercase bg-[#6F4E37]">
+              <tr><th class="px-2 py-2">Lokasi</th><th class="px-2 py-2 text-right">Omset Ecer</th><th class="px-2 py-2 text-right">Omset Grosir</th><th class="px-2 py-2 text-right">Total</th></tr>
+            </thead>
+            <tbody id="tabel-keuangan" class="divide-y divide-[#EEDDC8]"></tbody>
+            <tfoot id="tabel-keuangan-total"></tfoot>
+          </table>
         </div>
       </div>
 
@@ -157,7 +186,7 @@
     <nav id="navigasi-bawah" class="hidden fixed bottom-0 w-full max-w-md bg-white border-t border-[#D6C5B3] flex justify-around text-xs font-bold text-gray-400 shadow-[0_-5px_15px_rgba(74,48,24,0.1)] pb-safe z-50">
       <button id="nav-transaksi" onclick="gantiTampilan('tampilan-transaksi')" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors"><div class="text-2xl mb-1">📦</div>Transaksi</button>
       <button id="nav-buat-qr" onclick="gantiTampilan('tampilan-buat-qr'); buatGambarBarcode();" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors"><div class="text-2xl mb-1">🏷️</div>Label</button>
-      <button id="nav-laporan" onclick="gantiTampilan('tampilan-laporan'); muatLaporanStok(); muatProdukTerlaris();" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors"><div class="text-2xl mb-1">📊</div>Laporan</button>
+      <button id="nav-laporan" onclick="gantiTampilan('tampilan-laporan'); muatLaporanStok(); muatProdukTerlaris(); muatRingkasanBulanan(); muatLaporanKeuangan();" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors"><div class="text-2xl mb-1">📊</div>Laporan</button>
     </nav>
 
     <div id="loading" class="hidden absolute inset-0 bg-[#FDF8F3]/80 backdrop-blur-sm z-[60] flex justify-center items-center">
@@ -341,6 +370,8 @@
         gantiTampilan('tampilan-laporan');
         muatLaporanStok();
         muatProdukTerlaris();
+        muatRingkasanBulanan();
+        muatLaporanKeuangan();
       } else if (p === 'kasir') {
         document.getElementById('nav-transaksi').style.display = 'block';
         document.getElementById('nav-buat-qr').style.display = 'none';
@@ -499,6 +530,8 @@
           : 'flex-1 py-2 rounded-lg text-xs font-bold bg-[#EEDDC8] text-[#4A3018] transition-colors';
       });
       muatProdukTerlaris();
+      muatRingkasanBulanan();
+      muatLaporanKeuangan();
     }
 
     function muatProdukTerlaris() {
@@ -519,6 +552,48 @@
           }
         });
       }).catch(err => tampilkanPesan('Gagal memuat grafik produk terlaris.', false));
+    }
+
+    function formatRupiah(angka) {
+      return 'Rp ' + Math.round(angka || 0).toLocaleString('id-ID');
+    }
+
+    function muatLaporanKeuangan() {
+      panggilAPI('ambilLaporanKeuangan', [periodeAktif]).then(res => {
+        const tbody = document.getElementById('tabel-keuangan');
+        tbody.innerHTML = res.perLokasi.length === 0
+          ? `<tr><td colspan="4" class="px-2 py-3 text-center text-[#6F4E37]">Belum ada data.</td></tr>`
+          : res.perLokasi.map(r => `<tr><td class="px-2 py-2 font-semibold">${r.namaLokasi}</td><td class="px-2 py-2 text-right">${formatRupiah(r.omsetEcer)}</td><td class="px-2 py-2 text-right">${formatRupiah(r.omsetGrosir)}</td><td class="px-2 py-2 text-right font-bold">${formatRupiah(r.omsetTotal)}</td></tr>`).join('');
+
+        const tfoot = document.getElementById('tabel-keuangan-total');
+        tfoot.innerHTML = `<tr class="bg-[#EEDDC8] font-bold"><td class="px-2 py-2">TOTAL</td><td class="px-2 py-2 text-right">${formatRupiah(res.grandTotal.omsetEcer)}</td><td class="px-2 py-2 text-right">${formatRupiah(res.grandTotal.omsetGrosir)}</td><td class="px-2 py-2 text-right">${formatRupiah(res.grandTotal.omsetTotal)}</td></tr>`;
+      }).catch(() => {});
+    }
+
+    function muatRingkasanBulanan() {
+      panggilAPI('ambilRingkasanPenjualan', [periodeAktif]).then(data => {
+        const tbody = document.getElementById('tabel-penjualan');
+        tbody.innerHTML = data.length === 0
+          ? `<tr><td colspan="5" class="px-2 py-3 text-center text-[#6F4E37]">Belum ada data.</td></tr>`
+          : data.map(r => `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.idLokasi}</td><td class="px-2 py-2 text-center">${r.ecer}</td><td class="px-2 py-2 text-center">${r.grosir}</td><td class="px-2 py-2 text-center font-bold">${r.total}</td></tr>`).join('');
+      }).catch(() => {});
+
+      panggilAPI('ambilRingkasanBarangMasuk', [periodeAktif]).then(data => {
+        const tbody = document.getElementById('tabel-barang-masuk');
+        tbody.innerHTML = data.length === 0
+          ? `<tr><td colspan="4" class="px-2 py-3 text-center text-[#6F4E37]">Belum ada data.</td></tr>`
+          : data.map(r => {
+              const sumberTeks = r.sumber === 'Supplier' ? (r.namaSupplier || 'Supplier') : 'Penjahit';
+              return `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.idLokasi}</td><td class="px-2 py-2">${sumberTeks}</td><td class="px-2 py-2 text-center font-bold">${r.qty}</td></tr>`;
+            }).join('');
+      }).catch(() => {});
+
+      panggilAPI('ambilRingkasanTransfer', [periodeAktif]).then(data => {
+        const tbody = document.getElementById('tabel-transfer');
+        tbody.innerHTML = data.length === 0
+          ? `<tr><td colspan="4" class="px-2 py-3 text-center text-[#6F4E37]">Belum ada data.</td></tr>`
+          : data.map(r => `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.dari}</td><td class="px-2 py-2">${r.ke}</td><td class="px-2 py-2 text-center font-bold">${r.qty}</td></tr>`).join('');
+      }).catch(() => {});
     }
 
     function kirimLaporanEmail() {
