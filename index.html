@@ -132,6 +132,21 @@
         <button onclick="muatLaporanStok()" class="bg-[#EEDDC8] text-[#4A3018] px-3 py-2 rounded-lg font-bold text-xs shadow active:bg-[#D6C5B3] shrink-0">Muat Ulang</button>
       </div>
 
+      <div class="grid grid-cols-3 gap-2 mb-4">
+        <div class="bg-[#EEDDC8] rounded-lg p-2 text-center">
+          <div id="ringkasan-jumlah-sku" class="text-lg font-bold text-[#4A3018]">0</div>
+          <div class="text-[9px] text-[#6F4E37] font-semibold uppercase leading-tight">Jumlah SKU</div>
+        </div>
+        <div class="bg-[#EEDDC8] rounded-lg p-2 text-center">
+          <div id="ringkasan-total-stok" class="text-lg font-bold text-[#4A3018]">0</div>
+          <div class="text-[9px] text-[#6F4E37] font-semibold uppercase leading-tight">Total Stok (pcs)</div>
+        </div>
+        <div class="bg-[#EEDDC8] rounded-lg p-2 text-center">
+          <div id="ringkasan-produk-terlaris" class="text-lg font-bold text-[#4A3018]">0</div>
+          <div class="text-[9px] text-[#6F4E37] font-semibold uppercase leading-tight">Produk Terlaris</div>
+        </div>
+      </div>
+
       <div class="flex gap-2 mb-4">
         <button id="tab-harian" onclick="gantiPeriode('harian')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-[#4A3018] text-white transition-colors">Harian</button>
         <button id="tab-bulanan" onclick="gantiPeriode('bulanan')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-[#EEDDC8] text-[#4A3018] transition-colors">Bulanan</button>
@@ -179,7 +194,7 @@
       </button>
 
       <div class="bg-white rounded-xl shadow-md border border-[#D6C5B3] overflow-hidden">
-        <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-[#FDF8F3] uppercase bg-[#6F4E37]"><tr><th class="px-4 py-3">Produk</th><th class="px-4 py-3 text-center">Total</th></tr></thead><tbody id="tabel-laporan" class="divide-y divide-[#EEDDC8]"></tbody></table></div>
+        <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead id="thead-laporan-stok" class="text-xs text-[#FDF8F3] uppercase bg-[#6F4E37]"></thead><tbody id="tabel-laporan" class="divide-y divide-[#EEDDC8]"></tbody></table></div>
       </div>
     </div>
 
@@ -362,30 +377,6 @@
 
       const p = penggunaSaatIni.peran;
       const btnKirimLaporan = document.getElementById('btn-kirim-laporan');
-      if (p === 'owner') {
-        document.getElementById('nav-transaksi').style.display = 'none';
-        document.getElementById('nav-buat-qr').style.display = 'none';
-        document.getElementById('nav-laporan').style.display = 'block';
-        btnKirimLaporan.classList.remove('hidden');
-        gantiTampilan('tampilan-laporan');
-        muatLaporanStok();
-        muatProdukTerlaris();
-        muatRingkasanBulanan();
-        muatLaporanKeuangan();
-      } else if (p === 'kasir') {
-        document.getElementById('nav-transaksi').style.display = 'block';
-        document.getElementById('nav-buat-qr').style.display = 'none';
-        document.getElementById('nav-laporan').style.display = 'none';
-        btnKirimLaporan.classList.add('hidden');
-        gantiTampilan('tampilan-transaksi');
-      } else {
-        // master
-        document.getElementById('nav-transaksi').style.display = 'block';
-        document.getElementById('nav-buat-qr').style.display = 'block';
-        document.getElementById('nav-laporan').style.display = 'block';
-        btnKirimLaporan.classList.remove('hidden');
-        gantiTampilan('tampilan-transaksi');
-      }
 
       const dropdownTipe = document.getElementById('input-tipe');
       dropdownTipe.innerHTML = `<option value="KELUAR_ECER">Jual Ecer</option><option value="KELUAR_GROSIR">Jual Grosir</option><option value="TRANSFER">🔄 Transfer ke Lokasi Lain</option>`;
@@ -394,7 +385,9 @@
       }
       ubahTampilanFormTipe();
 
-      // Muat daftar lokasi untuk dropdown transfer
+      // Muat daftar lokasi DULU (dipakai dropdown transfer & header tabel laporan stok) --
+      // baru setelah ini selesai, tampilkan navigasi & laporan sesuai peran, supaya tabel yang
+      // butuh daftar lokasi (laporan stok per lokasi) tidak sempat dirender kosong.
       panggilAPI('ambilDaftarLokasi', []).then(daftarLokasi => {
         daftarLokasiCache = daftarLokasi;
         const selDari = document.getElementById('input-dari-lokasi');
@@ -407,6 +400,31 @@
           selDari.disabled = true;
         } else {
           selDari.disabled = false;
+        }
+
+        if (p === 'owner') {
+          document.getElementById('nav-transaksi').style.display = 'none';
+          document.getElementById('nav-buat-qr').style.display = 'none';
+          document.getElementById('nav-laporan').style.display = 'block';
+          btnKirimLaporan.classList.remove('hidden');
+          gantiTampilan('tampilan-laporan');
+          muatLaporanStok();
+          muatProdukTerlaris();
+          muatRingkasanBulanan();
+          muatLaporanKeuangan();
+        } else if (p === 'kasir') {
+          document.getElementById('nav-transaksi').style.display = 'block';
+          document.getElementById('nav-buat-qr').style.display = 'none';
+          document.getElementById('nav-laporan').style.display = 'none';
+          btnKirimLaporan.classList.add('hidden');
+          gantiTampilan('tampilan-transaksi');
+        } else {
+          // master
+          document.getElementById('nav-transaksi').style.display = 'block';
+          document.getElementById('nav-buat-qr').style.display = 'block';
+          document.getElementById('nav-laporan').style.display = 'block';
+          btnKirimLaporan.classList.remove('hidden');
+          gantiTampilan('tampilan-transaksi');
         }
       }).catch(err => tampilkanPesan('Gagal memuat daftar lokasi.', false));
 
@@ -507,14 +525,28 @@
       tampilkanLoading(true, "Memuat laporan...");
       panggilAPI('ambilSemuaStok', []).then(data => {
         tampilkanLoading(false);
+
+        // Header tabel dibangun dinamis sesuai daftar lokasi yang ada (Toko + Ruko1-4, dst)
+        const thead = document.getElementById('thead-laporan-stok');
+        const kolomHeaderLokasi = daftarLokasiCache.map(l => `<th class="px-3 py-3 text-center">${l.id}</th>`).join('');
+        thead.innerHTML = `<tr><th class="px-4 py-3">Produk</th>${kolomHeaderLokasi}<th class="px-4 py-3 text-center">Total</th></tr>`;
+
         const tbody = document.getElementById('tabel-laporan');
-        tbody.innerHTML = '';
-        let ada = false;
-        for (const sku in data) {
-          ada = true;
-          tbody.innerHTML += `<tr class="bg-white border-b"><td class="px-4 py-3 text-[#4A3018]"><div class="uppercase font-bold">${sku}</div><div class="text-xs">${data[sku].detail.nama}</div></td><td class="px-4 py-3 text-center font-bold ${data[sku].Total < 0 ? 'text-red-600' : 'text-[#8B5A2B]'}">${data[sku].Total}</td></tr>`;
+        const daftarSku = Object.keys(data);
+        let totalStokSemua = 0;
+
+        if (daftarSku.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="${daftarLokasiCache.length + 2}" class="px-4 py-6 text-center text-[#6F4E37]">Belum ada data.</td></tr>`;
+        } else {
+          tbody.innerHTML = daftarSku.map(sku => {
+            totalStokSemua += data[sku].Total;
+            const kolomNilaiLokasi = daftarLokasiCache.map(l => `<td class="px-3 py-3 text-center">${data[sku][l.id] || 0}</td>`).join('');
+            return `<tr class="bg-white border-b"><td class="px-4 py-3 text-[#4A3018]"><div class="uppercase font-bold">${sku}</div><div class="text-xs">${data[sku].detail.nama}</div></td>${kolomNilaiLokasi}<td class="px-4 py-3 text-center font-bold ${data[sku].Total < 0 ? 'text-red-600' : 'text-[#8B5A2B]'}">${data[sku].Total}</td></tr>`;
+          }).join('');
         }
-        if (!ada) tbody.innerHTML = `<tr><td colspan="2" class="px-4 py-6 text-center text-[#6F4E37]">Belum ada data.</td></tr>`;
+
+        document.getElementById('ringkasan-jumlah-sku').textContent = daftarSku.length;
+        document.getElementById('ringkasan-total-stok').textContent = totalStokSemua;
       }).catch(err => {
         tampilkanLoading(false);
         tampilkanPesan('Gagal memuat laporan.', false);
@@ -536,6 +568,7 @@
 
     function muatProdukTerlaris() {
       panggilAPI('ambilProdukTerlaris', [periodeAktif]).then(data => {
+        document.getElementById('ringkasan-produk-terlaris').textContent = data.length;
         const ctx = document.getElementById('grafik-terlaris').getContext('2d');
         const label = data.map(d => d.nama);
         const nilai = data.map(d => d.qty);
