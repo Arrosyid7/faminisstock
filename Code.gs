@@ -1574,8 +1574,7 @@ function resetTransaksiStokDanProduk() {
   try { perbaruiDashboardSheet(); } catch (e) { /* Dashboard opsional, abaikan kalau error/belum ada */ }
 
   const pesan = 'RESET SELESAI:\n' + ringkasan.join('\n') +
-    '\n\nCatatan: daftar produk sekarang KOSONG TOTAL -- daftarkan ulang produk dari halaman ' +
-    '"Kelola Produk" (atau langsung di sheet Produk) sebelum mulai transaksi lagi.';
+    '\n\nCatatan: daftar produk sekarang KOSONG TOTAL -- daftarkan produk baru langsung di sheet Produk di Google Spreadsheet.';
   Logger.log(pesan);
   return { sukses: true, ringkasan: ringkasan };
 }
