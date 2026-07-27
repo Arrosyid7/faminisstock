@@ -689,17 +689,14 @@ function ambilDaftarLokasi() {
   return hasil;
 }
 
-// ==========================================
+// // ==========================================
 // 4. INTI: AMBIL STOK
 // ==========================================
 /**
- * Membaca stok TERKINI langsung dari sheet-sheet Stok_xxx (satu sheet per lokasi). Bentuk hasil
- * TETAP SAMA seperti sebelumnya (dipakai juga oleh Index.html & TemplatePdf.html), DITAMBAH 2
- * field baru per SKU untuk fitur peringatan stok menipis:
- *   { "SKU-001": { detail: {...}, Total: 12, TOKO: 5, RUKO1: 7,
- *                  stokMinimum: 10, stokRendah: false }, ... }
- * stokRendah = true kalau Stok_Minimum SKU ini diisi (>0) DAN Total stok gabungan semua lokasi
- * sudah di bawah atau sama dengan Stok_Minimum tsb.
+ * Membaca stok TERKINI langsung dari sheet-sheet Stok_xxx (satu sheet per lokasi).
+ * Mengembalikan objek per SKU, termasuk per-lokasi stok rendah berdasarkan Stok_Minimum per SKU dari sheet Produk.
+ *   { "SKU-001": { detail: {...}, Total: 12, TOKO: 2, RUKO1: 7,
+ *                  stokMinimum: 5, lokasiRendah: [{idLokasi: 'TOKO', stok: 2}], stokRendah: true }, ... }
  */
 function ambilSemuaStok() {
   const ss = getDb();
@@ -708,10 +705,6 @@ function ambilSemuaStok() {
   const daftarLokasi = ambilDaftarLokasi();
   const kolomMinimum = cariKolom(sheetProduk, 'Stok_Minimum');
 
-  // Kolom sheet "Produk" (skema BARU, berdiri sendiri -- bukan skema katalog website lama):
-  // ID_Produk(0), Nama Produk(1), Kategori(2), Harga Ecer(3), Harga Grosir(4), lalu Stok_Total
-  // & Stok_Minimum di posisi yang bisa berbeda-beda antar spreadsheet -- makanya Stok_Minimum
-  // dicari lewat cariKolom() di atas, bukan diasumsikan di indeks tetap.
   let petaProduk = {};
   for (let i = 1; i < produk.length; i++) {
     const sku = produk[i][0] ? produk[i][0].toString().trim() : "";
@@ -730,7 +723,7 @@ function ambilSemuaStok() {
   daftarLokasi.forEach(function (lokasi) {
     const namaSheet = dapatkanNamaSheetStok(lokasi.id);
     const sheet = ss.getSheetByName(namaSheet);
-    if (!sheet) return; // lokasi baru yang belum sempat disinkron -> lewati saja
+    if (!sheet) return;
 
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
@@ -746,12 +739,25 @@ function ambilSemuaStok() {
     }
   });
 
-  // Tandai status stok rendah per SKU berdasarkan Stok_Minimum (dipakai badge/banner peringatan
-  // di Index.html dan highlight baris di laporan PDF).
+  // Tandai status stok rendah PER LOKASI berdasarkan Stok_Minimum dari sheet Produk
   Object.keys(dataStok).forEach(function (sku) {
     const minimum = (dataStok[sku].detail && dataStok[sku].detail.stokMinimum) || 0;
     dataStok[sku].stokMinimum = minimum;
-    dataStok[sku].stokRendah = minimum > 0 && dataStok[sku].Total <= minimum;
+    dataStok[sku].lokasiRendah = [];
+
+    if (minimum > 0) {
+      daftarLokasi.forEach(function (lokasi) {
+        const stokLokasi = dataStok[sku][lokasi.id] || 0;
+        if (stokLokasi <= minimum) {
+          dataStok[sku].lokasiRendah.push({
+            idLokasi: lokasi.id,
+            namaLokasi: lokasi.nama,
+            stok: stokLokasi
+          });
+        }
+      });
+    }
+    dataStok[sku].stokRendah = minimum > 0 && (dataStok[sku].lokasiRendah.length > 0 || dataStok[sku].Total <= minimum);
   });
 
   return dataStok;
@@ -760,14 +766,6 @@ function ambilSemuaStok() {
 // ==========================================
 // 5. INTI: TAMBAH TRANSAKSI
 // ==========================================
-// Barang_Masuk HANYA berlaku untuk restock: dari penjahit sendiri (tipe MASUK_RESTOK,
-// sumber="Penjahit") ATAU kulakan dari supplier luar (tipe MASUK_RESTOK, sumber="Supplier" +
-// namaSupplier). Barang_Keluar HANYA berlaku untuk transaksi penjualan ecer/grosir. Transfer
-// TIDAK lagi lewat sini sama sekali -- lihat transferStok().
-// hargaManual: WAJIB diisi untuk KELUAR_ECER/KELUAR_GROSIR -- harga jual per pcs diketik MANUAL
-// oleh admin/kasir yang melakukan transaksi (bukan lagi otomatis diambil dari harga katalog di
-// sheet Produk), supaya harga jual RIIL yang tercatat (misal hasil nego di pasar), bukan harga
-// baku. Diabaikan untuk tipe transaksi lain (MASUK_RESTOK).
 function tambahTransaksi(sku, id_lokasi, qty, tipe, keterangan, pengguna, sumber, namaSupplier, hargaManual) {
   if (!pastikanPenggunaAktif(pengguna)) {
     return { sukses: false, pesan: 'Akun tidak aktif. Hubungi Admin Master.' };
@@ -780,15 +778,12 @@ function tambahTransaksi(sku, id_lokasi, qty, tipe, keterangan, pengguna, sumber
 
     const isMasuk = tipe.indexOf('MASUK') !== -1;
 
-    // VALIDASI ATURAN: Barang_Masuk cuma boleh tipe MASUK_RESTOK (penjahit/supplier).
     if (isMasuk && tipe !== 'MASUK_RESTOK') {
       throw new Error("Tipe transaksi masuk tidak dikenal. Barang Masuk hanya untuk restock (penjahit/supplier).");
     }
-    // VALIDASI ATURAN: Barang_Keluar cuma boleh penjualan ecer/grosir.
     if (!isMasuk && tipe !== 'KELUAR_ECER' && tipe !== 'KELUAR_GROSIR') {
       throw new Error("Tipe transaksi keluar tidak dikenal. Barang Keluar hanya untuk penjualan ecer/grosir.");
     }
-    // VALIDASI KEAMANAN: hanya TOKO/master yang boleh terima barang BARU dari luar (restok).
     if (tipe === 'MASUK_RESTOK' && id_lokasi !== 'TOKO' && id_lokasi !== 'SEMUA') {
       throw new Error("Ditolak! Ruko tidak bisa menerima barang baru dari luar secara langsung.");
     }
@@ -798,23 +793,16 @@ function tambahTransaksi(sku, id_lokasi, qty, tipe, keterangan, pengguna, sumber
     if (!sheet) throw new Error("Sheet " + namaSheet + " tidak ditemukan!");
 
     const qtyAbsolut = Math.abs(qty);
-
-    // Ambil kondisi stok SEBELUM transaksi -- dipakai untuk (1) validasi stok cukup pada
-    // penjualan, dan (2) deteksi SKU baru saja melewati ambang batas Stok_Minimum (dipakai di
-    // bawah setelah stok diperbarui).
     const stokSebelum = ambilSemuaStok();
-    const totalSebelum = (stokSebelum[sku] && stokSebelum[sku].Total) || 0;
+    const stokLokasiSebelum = (stokSebelum[sku] && stokSebelum[sku][id_lokasi]) || 0;
 
-    // VALIDASI STOK CUKUP untuk penjualan (celah lama: hanya transfer yang dicek, padahal
-    // penjualan yang mencatat qty melebihi stok asli juga bisa jadi tanda kecolongan/salah input).
     if (!isMasuk) {
-      const stokTersedia = (stokSebelum[sku] && stokSebelum[sku][id_lokasi]) || 0;
-      if (stokTersedia < qtyAbsolut) {
-        throw new Error(`Stok ${sku} di ${id_lokasi} tidak cukup (tersedia: ${stokTersedia}, diminta: ${qtyAbsolut}). Cek ulang stok fisik sebelum lanjut.`);
+      if (stokLokasiSebelum < qtyAbsolut) {
+        throw new Error(`Stok ${sku} di ${id_lokasi} tidak cukup (tersedia: ${stokLokasiSebelum}, diminta: ${qtyAbsolut}). Cek ulang stok fisik.`);
       }
     }
 
-    const waktu = new Date(); // objek Date asli (bukan teks) supaya laporan harian/bulanan/tahunan akurat
+    const waktu = new Date();
     const idTrx = "TRX-" + new Date().getTime();
 
     if (namaSheet === 'Barang_Masuk') {
@@ -824,16 +812,8 @@ function tambahTransaksi(sku, id_lokasi, qty, tipe, keterangan, pengguna, sumber
         throw new Error('Nama supplier wajib diisi kalau sumbernya bukan Penjahit.');
       }
       if (namaSupplierFinal) pastikanSupplierTercatat(ss, namaSupplierFinal);
-      // Urutan kolom: Waktu, ID_Transaksi, SKU, ID_Lokasi, Qty, Tipe_Transaksi, Keterangan,
-      // Pengguna, Sumber, Nama_Supplier (2 kolom terakhir sengaja di ujung supaya baris lama
-      // yang sudah ada tetap valid meskipun sheet baru saja ditambah 2 kolom ini).
       sheet.appendRow([waktu, idTrx, sku, id_lokasi, qtyAbsolut, tipe, keterangan, pengguna, sumberFinal, namaSupplierFinal]);
     } else {
-      // Harga jual per pcs diisi MANUAL oleh admin/kasir yang transaksi (bukan otomatis dari
-      // harga katalog produk) -- supaya harga jual RIIL (misal hasil nego) yang tercatat, dan
-      // laporan keuangan tetap akurat historis walau harga katalog di sheet Produk berubah di
-      // kemudian hari. Kolom Keterangan dipakai sebagai catatan bebas (opsional) untuk transaksi
-      // penjualan ini, misal "harga nego" atau "barang lecet dikit".
       const hargaSatuan = Number(hargaManual) || 0;
       if (hargaSatuan <= 0) {
         throw new Error('Harga jual per pcs wajib diisi (lebih dari 0).');
@@ -841,28 +821,20 @@ function tambahTransaksi(sku, id_lokasi, qty, tipe, keterangan, pengguna, sumber
       sheet.appendRow([waktu, idTrx, sku, id_lokasi, qtyAbsolut, tipe, keterangan, pengguna, hargaSatuan]);
     }
 
-    // Update stok LIVE di sheet Stok_xxx lokasi ini: MASUK menambah, KELUAR mengurangi.
     ubahStokLokasi(id_lokasi, sku, isMasuk ? qtyAbsolut : -qtyAbsolut);
-
     SpreadsheetApp.flush();
 
-    // === Peringatan Stok Minimum (berlaku untuk SEMUA user/peran yang melakukan transaksi) ===
-    // Dihitung dari TOTAL stok gabungan semua lokasi (bukan per-lokasi), sesuai Stok_Minimum
-    // yang diatur per SKU di halaman "Kelola Produk". Kalau hasilnya sudah di bawah/sama dengan
-    // minimum, pesan peringatan dikembalikan ke app supaya user manapun (kasir/admin/master)
-    // langsung lihat notifnya di layar. Email ke owner HANYA dikirim tepat saat SKU ini BARU
-        // SAJA melewati ambang batas (sebelumnya masih di atas minimum) -- supaya owner tidak
-    // dibanjiri email di setiap transaksi berikutnya selama stok belum ditambah lagi.
+    // Peringatan stok menipis di lokasi transaksi terjadi (berdasarkan Stok_Minimum sheet Produk)
     let peringatanStok = null;
     const detailProdukSemua = ambilDetailProdukSemua(ss);
     const stokMinimum = (detailProdukSemua[sku] && detailProdukSemua[sku].stokMinimum) || 0;
     if (stokMinimum > 0) {
-      const totalSesudah = totalSebelum + (isMasuk ? qtyAbsolut : -qtyAbsolut);
-      if (totalSesudah <= stokMinimum) {
+      const stokLokasiSesudah = stokLokasiSebelum + (isMasuk ? qtyAbsolut : -qtyAbsolut);
+      if (stokLokasiSesudah <= stokMinimum) {
         const namaProduk = ambilNamaProdukDariSku(sku);
-        peringatanStok = `⚠️ Stok ${namaProduk} (${sku}) tinggal ${totalSesudah} pcs, sudah di bawah/sama dengan batas minimum (${stokMinimum} pcs). Segera restock.`;
-        if (totalSebelum > stokMinimum) {
-          kirimEmailPeringatanStok(namaProduk, sku, totalSesudah, stokMinimum);
+        peringatanStok = `⚠️ Stok ${namaProduk} (${sku}) di ${id_lokasi} tinggal ${stokLokasiSesudah} pcs, sudah di bawah/sama dengan batas minimum (${stokMinimum} pcs). Segera restock!`;
+        if (stokLokasiSebelum > stokMinimum) {
+          kirimEmailPeringatanStok(namaProduk, sku, stokLokasiSesudah, stokMinimum, id_lokasi);
         }
       }
     }
@@ -876,36 +848,29 @@ function tambahTransaksi(sku, id_lokasi, qty, tipe, keterangan, pengguna, sumber
 }
 
 /**
- * Kirim email peringatan stok menipis ke owner untuk 1 SKU. Dibungkus try/catch supaya kalau
- * pengiriman email gagal (misal kuota MailApp harian habis), transaksi yang sedang berjalan
- * TETAP dianggap berhasil -- cuma dicatat di Logger, tidak melempar error ke user.
+ * Kirim email peringatan stok menipis ke owner per lokasi.
  */
-function kirimEmailPeringatanStok(namaProduk, sku, stokSekarang, stokMinimum) {
+function kirimEmailPeringatanStok(namaProduk, sku, stokSekarang, stokMinimum, idLokasi) {
   try {
     MailApp.sendEmail({
       to: EMAIL_OWNER,
-      subject: `⚠️ Peringatan Stok Menipis: ${namaProduk}`,
-      body: `Halo Owner,\n\nStok produk berikut sudah mencapai atau di bawah batas minimum yang diatur:\n\n` +
+      subject: `⚠️ Peringatan Stok Menipis di ${idLokasi || 'Lokasi'}: ${namaProduk}`,
+      body: `Halo Owner,\n\nStok produk berikut sudah mencapai atau di bawah batas minimum di lokasi ${idLokasi || '-'}:\n\n` +
             `Produk: ${namaProduk} (${sku})\n` +
-            `Stok saat ini (gabungan semua lokasi): ${stokSekarang} pcs\n` +
-            `Batas minimum: ${stokMinimum} pcs\n\n` +
-            `Segera lakukan restock/kulakan supaya tidak kehabisan.\n\n` +
-            `- Sistem Stok Faminis Barokah (email otomatis)`
+            `Lokasi: ${idLokasi || 'Gabungan'}\n` +
+            `Stok saat ini di lokasi ini: ${stokSekarang} pcs\n` +
+            `Batas minimum (sheet Produk): ${stokMinimum} pcs\n\n` +
+            `Segera lakukan restock ke lokasi tersebut.\n\n` +
+            `- Sistem Stok Faminis Barokah`
     });
   } catch (e) {
-    Logger.log('Gagal kirim email peringatan stok untuk ' + sku + ': ' + (e.message || e));
+    Logger.log('Gagal kirim email peringatan stok: ' + (e.message || e));
   }
 }
 
 // ==========================================
 // 6. INTI: TRANSFER STOK (Toko->Ruko atau Ruko->Ruko)
 // ==========================================
-// Transfer sekarang dicatat di sheet TERSENDIRI (Transfer_Keluar & Transfer_Masuk), TIDAK lagi
-// menumpang di Barang_Masuk/Barang_Keluar -- supaya kedua sheet itu murni berisi restock &
-// penjualan saja, sesuai aturan baru.
-// Catatan: transfer TIDAK mengubah TOTAL stok gabungan semua lokasi (cuma pindah antar lokasi),
-// jadi tidak perlu dicek terhadap Stok_Minimum di sini -- peringatan stok minimum hanya relevan
-// di tambahTransaksi() (penjualan mengurangi total, restock menambah total).
 function transferStok(sku, dariLokasi, keLokasi, qty, pengguna) {
   if (!pastikanPenggunaAktif(pengguna)) {
     return { sukses: false, pesan: 'Akun tidak aktif. Hubungi Admin Master.' };
@@ -926,7 +891,6 @@ function transferStok(sku, dariLokasi, keLokasi, qty, pengguna) {
     lock.waitLock(10000);
     const ss = getDb();
 
-    // Validasi stok cukup di lokasi asal sebelum transfer diproses
     const stokSaatIni = ambilSemuaStok();
     const stokAsal = (stokSaatIni[sku] && stokSaatIni[sku][dariLokasi]) || 0;
     if (stokAsal < qty) {
@@ -939,12 +903,24 @@ function transferStok(sku, dariLokasi, keLokasi, qty, pengguna) {
     ss.getSheetByName('Transfer_Keluar').appendRow([waktu, idTransfer, sku, dariLokasi, keLokasi, qty, pengguna]);
     ss.getSheetByName('Transfer_Masuk').appendRow([waktu, idTransfer, sku, keLokasi, dariLokasi, qty, pengguna]);
 
-    // Update stok LIVE: kurangi di lokasi asal, tambahkan di lokasi tujuan
     ubahStokLokasi(dariLokasi, sku, -qty);
     ubahStokLokasi(keLokasi, sku, qty);
 
     SpreadsheetApp.flush();
-    return { sukses: true, pesan: `Transfer ${qty} pcs ${sku} dari ${dariLokasi} ke ${keLokasi} berhasil!` };
+
+    // Cek peringatan stok menipis di lokasi asal setelah transfer
+    let peringatanStok = null;
+    const detailProdukSemua = ambilDetailProdukSemua(ss);
+    const stokMinimum = (detailProdukSemua[sku] && detailProdukSemua[sku].stokMinimum) || 0;
+    if (stokMinimum > 0) {
+      const stokAsalSesudah = stokAsal - qty;
+      if (stokAsalSesudah <= stokMinimum) {
+        const namaProduk = ambilNamaProdukDariSku(sku);
+        peringatanStok = `⚠️ Stok ${namaProduk} (${sku}) di ${dariLokasi} tinggal ${stokAsalSesudah} pcs (minimum: ${stokMinimum} pcs).`;
+      }
+    }
+
+    return { sukses: true, pesan: `Transfer ${qty} pcs ${sku} dari ${dariLokasi} ke ${keLokasi} berhasil!`, peringatanStok: peringatanStok };
   } catch (e) {
     return { sukses: false, pesan: e.message || 'Sistem sibuk. Silakan coba lagi.' };
   } finally {
