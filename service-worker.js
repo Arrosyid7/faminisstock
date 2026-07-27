@@ -9,7 +9,6 @@ const OFFLINE_URL = './offline.html';
 // Semua asset statis yang di-pre-cache saat install
 const ASSETS_TO_CACHE = [
   './',
-  './index.html',
   './Index.html',
   './manifest.json',
   './offline.html',
