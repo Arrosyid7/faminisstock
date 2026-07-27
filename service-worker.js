@@ -3,7 +3,7 @@
 // Strategy: Cache First untuk asset lokal, Network Only untuk API
 // ============================================================
 
-const CACHE_NAME = 'faminis-stok-v1';
+const CACHE_NAME = 'faminis-stok-v2';
 const OFFLINE_URL = './offline.html';
 
 // Semua asset statis yang di-pre-cache saat install
@@ -12,9 +12,17 @@ const ASSETS_TO_CACHE = [
   './Index.html',
   './manifest.json',
   './offline.html',
+  './icons/icon-48.png',
+  './icons/icon-72.png',
+  './icons/icon-96.png',
+  './icons/icon-128.png',
+  './icons/icon-144.png',
+  './icons/icon-168.png',
   './icons/icon-192.png',
+  './icons/icon-384.png',
   './icons/icon-512.png',
-  './icons/icon-maskable-512.png'
+  './icons/icon-maskable-512.png',
+  './icons/screenshot-mobile.png'
 ];
 
 // =====================
