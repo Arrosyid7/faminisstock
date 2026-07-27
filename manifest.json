@@ -3,7 +3,7 @@
   "name": "Faminis Barokah — Sistem Stok",
   "short_name": "Faminis Stok",
   "description": "Aplikasi manajemen stok terpadu untuk Faminis Barokah. Kelola stok, transaksi penjualan ecer/grosir, transfer antar lokasi, laporan keuangan, dan barcode dari mana saja langsung di HP.",
-  "start_url": "./",
+  "start_url": "./Index.html",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
@@ -70,7 +70,7 @@
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -90,7 +90,7 @@
       "name": "Input Transaksi",
       "short_name": "Transaksi",
       "description": "Input transaksi penjualan atau stok masuk",
-      "url": "./",
+      "url": "./Index.html",
       "icons": [
         {
           "src": "icons/icon-96.png",
