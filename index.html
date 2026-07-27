@@ -489,12 +489,13 @@
           btnKirimLaporan.classList.add('hidden');
           gantiTampilan('tampilan-transaksi');
         } else {
-          // master: transaksi, label barcode, laporan
-          document.getElementById('nav-transaksi').style.display = 'block';
+          // master: hanya bisa bikin kode (label barcode) & lihat laporan
+          document.getElementById('nav-transaksi').style.display = 'none';
           document.getElementById('nav-buat-qr').style.display = 'block';
           document.getElementById('nav-laporan').style.display = 'block';
           btnKirimLaporan.classList.remove('hidden');
-          gantiTampilan('tampilan-transaksi');
+          gantiTampilan('tampilan-buat-qr');
+          buatGambarBarcode();
         }
 
         if (bisaLihatLaporan) {
