@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #3E2723;
+            margin: 24px;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #4A3018;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #4A3018;
+            margin: 0 0 4px 0;
+            font-size: 22px;
+        }
+
+        .header p {
+            margin: 0;
+            color: #6F4E37;
+            font-size: 12px;
+        }
+
+        .ringkasan {
+            display: table;
+            width: 100%;
+            margin-bottom: 10px;
+            border-spacing: 8px 0;
+        }
+
+        .kotak-ringkasan {
+            display: table-cell;
+            width: 25%;
+            text-align: center;
+            padding: 12px;
+            background: #EEDDC8;
+            border-radius: 6px;
+        }
+
+        .kotak-ringkasan.rendah {
+            background: #FBD5D5;
+        }
+
+        .kotak-ringkasan .angka {
+            font-size: 22px;
+            font-weight: bold;
+            color: #4A3018;
+        }
+
+        .kotak-ringkasan.rendah .angka {
+            color: #B91C1C;
+        }
+
+        .kotak-ringkasan .label {
+            font-size: 11px;
+            color: #6F4E37;
+            margin-top: 2px;
+        }
+
+        h2 {
+            color: #4A3018;
+            font-size: 15px;
+            border-bottom: 1px solid #D6C5B3;
+            padding-bottom: 4px;
+            margin-top: 26px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 11px;
+        }
+
+        th,
+        td {
+            border: 1px solid #D6C5B3;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #EEDDC8;
+            color: #4A3018;
+        }
+
+        td.angka,
+        th.angka {
+            text-align: center;
+        }
+
+        tr.baris-rendah td {
+            background-color: #FDE8E8;
+        }
+
+        .grafik {
+            text-align: center;
+            margin: 14px 0 20px 0;
+        }
+
+        .grafik img {
+            max-width: 100%;
+            border: 1px solid #EEDDC8;
+            border-radius: 6px;
+            padding: 6px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 10px;
+            color: #6F4E37;
+            text-align: center;
+            border-top: 1px solid #D6C5B3;
+            padding-top: 8px;
+        }
+
+        .catatan {
+            margin-top: 24px;
+            font-size: 11px;
+            color: #6F4E37;
+        }
+
+        .judul-bagian {
+            background: #4A3018;
+            color: #FDF8F3;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: bold;
+            margin-top: 30px;
+            margin-bottom: 4px;
+        }
+
+        .total-row td {
+            background: #EEDDC8;
+            font-weight: bold;
+        }
+
+        .kotak-peringatan {
+            background: #FBD5D5;
+            border: 1px solid #F5A3A3;
+            color: #B91C1C;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 11px;
+            margin-top: 14px;
+        }
+
+        .kotak-peringatan b {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Laporan Stok Faminis Barokah</h1>
+        <p>Periode:
+            <?= periode.charAt(0).toUpperCase() + periode.slice(1) ?> &middot; Tanggal Cetak:
+            <?= new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) ?>
+        </p>
+    </div>
+
+    <?
+    var daftarSku = Object.keys(data);
+    var totalSku = daftarSku.length;
+    var totalStok = 0;
+    var daftarSkuRendah = [];
+    daftarSku.forEach(function(s) {
+      totalStok += data[s].Total;
+      if (data[s].stokRendah) daftarSkuRendah.push(s);
+    });
+  ?>
+
+    <div class="ringkasan">
+        <div class="kotak-ringkasan">
+            <div class="angka">
+                <?= totalSku ?>
+            </div>
+            <div class="label">Jumlah SKU Tercatat</div>
+        </div>
+        <div class="kotak-ringkasan">
+            <div class="angka">
+                <?= totalStok ?>
+            </div>
+            <div class="label">Total Stok Seluruh Lokasi (pcs)</div>
+        </div>
+        <div class="kotak-ringkasan">
+            <div class="angka">
+                <?= produkTerlaris.length ?>
+            </div>
+            <div class="label">Produk Terlaris Tercatat</div>
+        </div>
+        <div class="kotak-ringkasan <?= daftarSkuRendah.length > 0 ? 'rendah' : '' ?>">
+            <div class="angka">
+                <?= daftarSkuRendah.length ?>
+            </div>
+            <div class="label">Produk Stok Menipis</div>
+        </div>
+    </div>
+
+    <? if (daftarSkuRendah.length > 0) { ?>
+    <div class="kotak-peringatan">
+        <b>⚠️ Produk yang stoknya sudah di bawah/sama dengan batas minimum:</b>
+        <?= daftarSkuRendah.map(function(s) { return data[s].detail.nama + ' (' + data[s].Total + '/' + data[s].stokMinimum + ' pcs)'; }).join(', ') ?>
+    </div>
+    <? } ?>
+
+    <div class="judul-bagian">📦 LAPORAN STOK</div>
+
+    <? if (grafikBase64) { ?>
+    <h2>Grafik Produk Terlaris</h2>
+    <div class="grafik"><img src="data:image/png;base64,<?= grafikBase64 ?>"></div>
+    <? } ?>
+
+    <h2>Detail Stok per Lokasi</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID Produk</th>
+                <th>Nama Produk</th>
+                <th class="angka">Min</th>
+                <? daftarLokasi.forEach(function(l) { ?>
+                <th class="angka">
+                    <?= l.id ?>
+                </th>
+                <? }); ?>
+                <th class="angka">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <? daftarSku.forEach(function(sku) { ?>
+            <tr <?=data[sku].stokRendah ? 'class="baris-rendah"' : '' ?>>
+                <td>
+                    <?= sku ?>
+                    <?= data[sku].stokRendah ? ' ⚠️' : '' ?>
+                </td>
+                <td>
+                    <?= data[sku].detail.nama ?>
+                </td>
+                <td class="angka">
+                    <?= data[sku].stokMinimum || 0 ?>
+                </td>
+                <? daftarLokasi.forEach(function(l) { ?>
+                <td class="angka">
+                    <?= data[sku][l.id] || 0 ?>
+                </td>
+                <? }); ?>
+                <td class="angka"><b>
+                        <?= data[sku].Total ?>
+                    </b></td>
+            </tr>
+            <? }); ?>
+        </tbody>
+    </table>
+
+    <p class="catatan">*Kolom bernilai negatif menandakan barang keluar lebih banyak tercatat daripada barang masuk di
+        lokasi tersebut -- perlu dicek ulang lewat Stock Opname. Baris berwarna merah menandakan stok produk tersebut
+        sudah di bawah/sama dengan batas minimum ("Min") yang diatur di halaman Kelola Produk.</p>
+
+    <h2>Data Penjualan Bulanan (Ecer &amp; Grosir)</h2>
+    <? if (ringkasanPenjualan && ringkasanPenjualan.length > 0) { ?>
+    <table>
+        <thead>
+            <tr>
+                <th>ID Produk</th>
+                <th>Nama Produk</th>
+                <th>Lokasi</th>
+                <th class="angka">Qty Ecer</th>
+                <th class="angka">Qty Grosir</th>
+                <th class="angka">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <? ringkasanPenjualan.forEach(function(r) { ?>
+            <tr>
+                <td>
+                    <?= r.sku ?>
+                </td>
+                <td>
+                    <?= r.nama ?>
+                </td>
+                <td class="angka">
+                    <?= r.idLokasi ?>
+                </td>
+                <td class="angka">
+                    <?= r.ecer ?>
+                </td>
+                <td class="angka">
+                    <?= r.grosir ?>
+                </td>
+                <td class="angka"><b>
+                        <?= r.total ?>
+                    </b></td>
+            </tr>
+            <? }); ?>
+        </tbody>
+    </table>
+    <? } else { ?>
+    <p class="catatan">Belum ada transaksi penjualan tercatat untuk periode ini.</p>
+    <? } ?>
+
+    <h2>Data Barang Masuk Bulanan (Penjahit &amp; Supplier)</h2>
+    <? if (ringkasanBarangMasuk && ringkasanBarangMasuk.length > 0) { ?>
+    <table>
+        <thead>
+            <tr>
+                <th>ID Produk</th>
+                <th>Nama Produk</th>
+                <th>Lokasi</th>
+                <th>Sumber</th>
+                <th>Nama Supplier</th>
+                <th class="angka">Qty</th>
+            </tr>
+        </thead>
+        <tbody>
+            <? ringkasanBarangMasuk.forEach(function(r) { ?>
+            <tr>
+                <td>
+                    <?= r.sku ?>
+                </td>
+                <td>
+                    <?= r.nama ?>
+                </td>
+                <td class="angka">
+                    <?= r.idLokasi ?>
+                </td>
+                <td>
+                    <?= r.sumber ?>
+                </td>
+                <td>
+                    <?= r.namaSupplier || '-' ?>
+                </td>
+                <td class="angka"><b>
+                        <?= r.qty ?>
+                    </b></td>
+            </tr>
+            <? }); ?>
+        </tbody>
+    </table>
+    <? } else { ?>
+    <p class="catatan">Belum ada barang masuk (restock) tercatat untuk periode ini.</p>
+    <? } ?>
+
+    <h2>Data Transfer Bulanan (Antar Lokasi)</h2>
+    <? if (ringkasanTransfer && ringkasanTransfer.length > 0) { ?>
+    <table>
+        <thead>
+            <tr>
+                <th>ID Produk</th>
+                <th>Nama Produk</th>
+                <th>Dari Lokasi</th>
+                <th>Ke Lokasi</th>
+                <th class="angka">Qty</th>
+            </tr>
+        </thead>
+        <tbody>
+            <? ringkasanTransfer.forEach(function(r) { ?>
+            <tr>
+                <td>
+                    <?= r.sku ?>
+                </td>
+                <td>
+                    <?= r.nama ?>
+                </td>
+                <td class="angka">
+                    <?= r.dari ?>
+                </td>
+                <td class="angka">
+                    <?= r.ke ?>
+                </td>
+                <td class="angka"><b>
+                        <?= r.qty ?>
+                    </b></td>
+            </tr>
+            <? }); ?>
+        </tbody>
+    </table>
+    <? } else { ?>
+    <p class="catatan">Belum ada transfer antar lokasi tercatat untuk periode ini.</p>
+    <? } ?>
+
+    <div class="judul-bagian">💰 LAPORAN KEUANGAN PENJUALAN</div>
+
+    <? if (grafikOmsetBase64) { ?>
+    <h2>Grafik Omset per Lokasi</h2>
+    <div class="grafik"><img src="data:image/png;base64,<?= grafikOmsetBase64 ?>"></div>
+    <? } ?>
+
+    <h2>Omset Penjualan per Lokasi (Toko/Gudang &amp; Ruko 1-4)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Lokasi</th>
+                <th class="angka">Qty Ecer</th>
+                <th class="angka">Qty Grosir</th>
+                <th class="angka">Omset Ecer (Rp)</th>
+                <th class="angka">Omset Grosir (Rp)</th>
+                <th class="angka">Total Omset (Rp)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <? laporanKeuangan.perLokasi.forEach(function(r) { ?>
+            <tr>
+                <td>
+                    <?= r.namaLokasi ?>
+                </td>
+                <td class="angka">
+                    <?= r.qtyEcer ?>
+                </td>
+                <td class="angka">
+                    <?= r.qtyGrosir ?>
+                </td>
+                <td class="angka">
+                    <?= Math.round(r.omsetEcer).toLocaleString('id-ID') ?>
+                </td>
+                <td class="angka">
+                    <?= Math.round(r.omsetGrosir).toLocaleString('id-ID') ?>
+                </td>
+                <td class="angka"><b>
+                        <?= Math.round(r.omsetTotal).toLocaleString('id-ID') ?>
+                    </b></td>
+            </tr>
+            <? }); ?>
+            <tr class="total-row">
+                <td>TOTAL SEMUA LOKASI</td>
+                <td class="angka">-</td>
+                <td class="angka">-</td>
+                <td class="angka">
+                    <?= Math.round(laporanKeuangan.grandTotal.omsetEcer).toLocaleString('id-ID') ?>
+                </td>
+                <td class="angka">
+                    <?= Math.round(laporanKeuangan.grandTotal.omsetGrosir).toLocaleString('id-ID') ?>
+                </td>
+                <td class="angka">
+                    <?= Math.round(laporanKeuangan.grandTotal.omsetTotal).toLocaleString('id-ID') ?>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="catatan">*Omset dihitung dari harga jual yang tersimpan pada saat transaksi terjadi (bukan harga produk
+        saat ini), supaya akurat meski harga berubah di kemudian hari.</p>
+
+    <div class="footer">Faminis Barokah &middot; Pasar Klewer, Solo &middot; Laporan dibuat otomatis oleh Sistem
+        Manajemen Stok</div>
+</body>
+
+</html>

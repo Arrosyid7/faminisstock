@@ -1,0 +1,15 @@
+# Node.js (kalau nanti pakai build tools)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+*.swp
+*.swo
+
+# Log files
+*.log
