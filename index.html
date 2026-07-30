@@ -90,14 +90,14 @@
       </div>
       <div class="space-y-4">
         <select id="input-username" class="w-full p-4 border border-[#D6C5B3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8B5A2B] text-lg bg-white shadow-inner font-semibold text-[#3E2723]">
-          <option value="">-- Pilih Akun Staff (PJ) --</option>
-          <option value="ruko1">Sholeh (Ruko 1)</option>
-          <option value="ruko2">Nana (Ruko 2)</option>
-          <option value="ruko3">Vany (Ruko 3)</option>
-          <option value="ruko4">Cici (Ruko 4)</option>
-          <option value="toko">Gudang Pusat / Toko</option>
-          <option value="owner">Pemilik / Owner</option>
-          <option value="master">Administrator Master</option>
+          <option value="">-- Pilih Akun Staff --</option>
+          <option value="master">1. Master</option>
+          <option value="owner">2. Owner</option>
+          <option value="toko">3. Gudang ( toko )</option>
+          <option value="ruko1">4. Sholeh</option>
+          <option value="ruko2">5. Nana</option>
+          <option value="ruko3">6. Vany</option>
+          <option value="ruko4">7. Cici</option>
         </select>
         <input type="password" id="input-pin" placeholder="PIN" class="w-full p-4 border border-[#D6C5B3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8B5A2B] text-lg bg-white shadow-inner">
         <button onclick="masukSistem()" class="w-full bg-[#4A3018] text-white p-4 rounded-xl font-bold text-lg shadow-lg active:bg-[#2C1C0E] transition-transform active:scale-95">MASUK</button>
@@ -334,12 +334,14 @@
       'RUKO2': 'Nana',
       'RUKO3': 'Vany',
       'RUKO4': 'Cici',
-      'TOKO': 'Gudang / Toko',
+      'TOKO': 'Gudang ( toko )',
       'ruko1': 'Sholeh',
       'ruko2': 'Nana',
       'ruko3': 'Vany',
       'ruko4': 'Cici',
-      'toko': 'Gudang / Toko'
+      'toko': 'Gudang ( toko )',
+      'owner': 'Owner',
+      'master': 'Master'
     };
 
     function formatPJ(id) {
@@ -349,9 +351,7 @@
 
     function formatPJLengkap(id) {
       if (!id) return '-';
-      const pj = formatPJ(id);
-      if (pj === id) return id;
-      return `${pj} (${id})`;
+      return formatPJ(id);
     }
 
     function getFilterLokasiAktif() {

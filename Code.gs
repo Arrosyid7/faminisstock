@@ -393,17 +393,19 @@ function pastikanSupplierTercatat(ss, namaSupplier) {
 // dibuka dari GitHub Pages, bukan dari sini.
 
 const PETA_NAMA_PJ = {
-  'TOKO': 'Gudang Pusat / Toko',
-  'RUKO1': 'Sholeh (Ruko 1)',
-  'RUKO2': 'Nana (Ruko 2)',
-  'RUKO3': 'Vany (Ruko 3)',
-  'RUKO4': 'Cici (Ruko 4)',
-  'toko': 'Gudang Pusat / Toko',
-  'ruko1': 'Sholeh (Ruko 1)',
-  'ruko2': 'Nana (Ruko 2)',
-  'ruko3': 'Vany (Ruko 3)',
-  'ruko4': 'Cici (Ruko 4)',
-  'SEMUA': 'Semua Lokasi / Master'
+  'TOKO': 'Gudang (toko)',
+  'RUKO1': 'Sholeh',
+  'RUKO2': 'Nana',
+  'RUKO3': 'Vany',
+  'RUKO4': 'Cici',
+  'toko': 'Gudang (toko)',
+  'ruko1': 'Sholeh',
+  'ruko2': 'Nana',
+  'ruko3': 'Vany',
+  'ruko4': 'Cici',
+  'owner': 'Owner',
+  'master': 'Master',
+  'SEMUA': 'Master'
 };
 
 function dapatkanNamaPJ(idLokasi) {
@@ -413,7 +415,9 @@ function dapatkanNamaPJ(idLokasi) {
   if (kunci === 'RUKO2') return 'Nana';
   if (kunci === 'RUKO3') return 'Vany';
   if (kunci === 'RUKO4') return 'Cici';
-  if (kunci === 'TOKO') return 'Gudang / Toko';
+  if (kunci === 'TOKO') return 'Gudang (toko)';
+  if (kunci === 'OWNER') return 'Owner';
+  if (kunci === 'MASTER') return 'Master';
   return idLokasi;
 }
 
@@ -522,16 +526,18 @@ function ambilDaftarPengguna() {
     if (username && status === 'AKTIF') {
       const idLokasi = data[i][4] ? data[i][4].toString().trim() : '';
       let labelTampilan = data[i][1] || username;
-      if (username === 'ruko1') labelTampilan = 'Sholeh (Ruko 1)';
-      else if (username === 'ruko2') labelTampilan = 'Nana (Ruko 2)';
-      else if (username === 'ruko3') labelTampilan = 'Vany (Ruko 3)';
-      else if (username === 'ruko4') labelTampilan = 'Cici (Ruko 4)';
-      else if (username === 'toko') labelTampilan = 'Gudang Pusat / Toko';
+      if (username === 'ruko1') labelTampilan = 'Sholeh';
+      else if (username === 'ruko2') labelTampilan = 'Nana';
+      else if (username === 'ruko3') labelTampilan = 'Vany';
+      else if (username === 'ruko4') labelTampilan = 'Cici';
+      else if (username === 'toko') labelTampilan = 'Gudang (toko)';
+      else if (username === 'owner') labelTampilan = 'Owner';
+      else if (username === 'master') labelTampilan = 'Master';
       else if (idLokasi && PETA_NAMA_PJ[idLokasi]) labelTampilan = PETA_NAMA_PJ[idLokasi];
 
       hasil.push({
         username: username,
-        namaLengkap: data[i][1],
+        namaLengkap: labelTampilan,
         label: labelTampilan,
         peran: data[i][3],
         id_lokasi: idLokasi
@@ -573,11 +579,13 @@ function prosesLogin(username, pin) {
       }
       const idLok = data[i][4];
       let labelTampilan = data[i][1];
-      if (username === 'ruko1') labelTampilan = 'Sholeh (Ruko 1)';
-      else if (username === 'ruko2') labelTampilan = 'Nana (Ruko 2)';
-      else if (username === 'ruko3') labelTampilan = 'Vany (Ruko 3)';
-      else if (username === 'ruko4') labelTampilan = 'Cici (Ruko 4)';
-      else if (username === 'toko') labelTampilan = 'Gudang Pusat / Toko';
+      if (username === 'ruko1') labelTampilan = 'Sholeh';
+      else if (username === 'ruko2') labelTampilan = 'Nana';
+      else if (username === 'ruko3') labelTampilan = 'Vany';
+      else if (username === 'ruko4') labelTampilan = 'Cici';
+      else if (username === 'toko') labelTampilan = 'Gudang (toko)';
+      else if (username === 'owner') labelTampilan = 'Owner';
+      else if (username === 'master') labelTampilan = 'Master';
       else if (idLok && PETA_NAMA_PJ[idLok]) labelTampilan = PETA_NAMA_PJ[idLok];
 
       return {
