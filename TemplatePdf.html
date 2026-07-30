@@ -164,7 +164,7 @@
 <body>
     <div class="header">
         <h1>Laporan Stok Faminis Barokah</h1>
-        <p>Periode:
+        <p><b>Akun / Lokasi: <?= typeof namaPJHeader !== 'undefined' ? namaPJHeader : 'Semua Lokasi' ?></b> &middot; Periode:
             <?= periode.charAt(0).toUpperCase() + periode.slice(1) ?> &middot; Tanggal Cetak:
             <?= new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) ?>
         </p>
@@ -192,13 +192,13 @@
             <div class="angka">
                 <?= totalStok ?>
             </div>
-            <div class="label">Total Stok Seluruh Lokasi (pcs)</div>
+            <div class="label">Total Stok (pcs)</div>
         </div>
         <div class="kotak-ringkasan">
             <div class="angka">
                 <?= produkTerlaris.length ?>
             </div>
-            <div class="label">Produk Terlaris Tercatat</div>
+            <div class="label">Produk Terlaris</div>
         </div>
         <div class="kotak-ringkasan <?= daftarSkuRendah.length > 0 ? 'rendah' : '' ?>">
             <div class="angka">
@@ -231,7 +231,7 @@
                 <th class="angka">Min</th>
                 <? daftarLokasi.forEach(function(l) { ?>
                 <th class="angka">
-                    <?= l.id ?>
+                    <?= l.pj || l.nama || l.id ?>
                 </th>
                 <? }); ?>
                 <th class="angka">Total</th>
@@ -267,14 +267,14 @@
         lokasi tersebut -- perlu dicek ulang lewat Stock Opname. Baris berwarna merah menandakan stok produk tersebut
         sudah di bawah/sama dengan batas minimum ("Min") yang diatur di halaman Kelola Produk.</p>
 
-    <h2>Data Penjualan Bulanan (Ecer &amp; Grosir)</h2>
+    <h2>Data Penjualan (Ecer &amp; Grosir)</h2>
     <? if (ringkasanPenjualan && ringkasanPenjualan.length > 0) { ?>
     <table>
         <thead>
             <tr>
                 <th>ID Produk</th>
                 <th>Nama Produk</th>
-                <th>Lokasi</th>
+                <th>Lokasi (PJ)</th>
                 <th class="angka">Qty Ecer</th>
                 <th class="angka">Qty Grosir</th>
                 <th class="angka">Total</th>
@@ -290,7 +290,7 @@
                     <?= r.nama ?>
                 </td>
                 <td class="angka">
-                    <?= r.idLokasi ?>
+                    <?= r.namaLokasi || r.idLokasi ?>
                 </td>
                 <td class="angka">
                     <?= r.ecer ?>
@@ -309,14 +309,14 @@
     <p class="catatan">Belum ada transaksi penjualan tercatat untuk periode ini.</p>
     <? } ?>
 
-    <h2>Data Barang Masuk Bulanan (Penjahit &amp; Supplier)</h2>
+    <h2>Data Barang Masuk (Penjahit &amp; Supplier)</h2>
     <? if (ringkasanBarangMasuk && ringkasanBarangMasuk.length > 0) { ?>
     <table>
         <thead>
             <tr>
                 <th>ID Produk</th>
                 <th>Nama Produk</th>
-                <th>Lokasi</th>
+                <th>Lokasi (PJ)</th>
                 <th>Sumber</th>
                 <th>Nama Supplier</th>
                 <th class="angka">Qty</th>
@@ -332,7 +332,7 @@
                     <?= r.nama ?>
                 </td>
                 <td class="angka">
-                    <?= r.idLokasi ?>
+                    <?= r.namaLokasi || r.idLokasi ?>
                 </td>
                 <td>
                     <?= r.sumber ?>
@@ -351,7 +351,7 @@
     <p class="catatan">Belum ada barang masuk (restock) tercatat untuk periode ini.</p>
     <? } ?>
 
-    <h2>Data Transfer Bulanan (Antar Lokasi)</h2>
+    <h2>Data Transfer (Antar Lokasi)</h2>
     <? if (ringkasanTransfer && ringkasanTransfer.length > 0) { ?>
     <table>
         <thead>
@@ -373,10 +373,10 @@
                     <?= r.nama ?>
                 </td>
                 <td class="angka">
-                    <?= r.dari ?>
+                    <?= r.namaDari || r.dari ?>
                 </td>
                 <td class="angka">
-                    <?= r.ke ?>
+                    <?= r.namaKe || r.ke ?>
                 </td>
                 <td class="angka"><b>
                         <?= r.qty ?>
@@ -396,11 +396,11 @@
     <div class="grafik"><img src="data:image/png;base64,<?= grafikOmsetBase64 ?>"></div>
     <? } ?>
 
-    <h2>Omset Penjualan per Lokasi (Toko/Gudang &amp; Ruko 1-4)</h2>
+    <h2>Omset Penjualan per Lokasi</h2>
     <table>
         <thead>
             <tr>
-                <th>Lokasi</th>
+                <th>Lokasi (PJ)</th>
                 <th class="angka">Qty Ecer</th>
                 <th class="angka">Qty Grosir</th>
                 <th class="angka">Omset Ecer (Rp)</th>
@@ -432,7 +432,7 @@
             </tr>
             <? }); ?>
             <tr class="total-row">
-                <td>TOTAL SEMUA LOKASI</td>
+                <td>TOTAL</td>
                 <td class="angka">-</td>
                 <td class="angka">-</td>
                 <td class="angka">

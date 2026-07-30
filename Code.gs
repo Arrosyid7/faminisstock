@@ -392,11 +392,44 @@ function pastikanSupplierTercatat(ss, namaSupplier) {
 // langsung, misal untuk uji coba cepat dari editor), tapi versi produksi kamu nantinya akan
 // dibuka dari GitHub Pages, bukan dari sini.
 
+const PETA_NAMA_PJ = {
+  'TOKO': 'Gudang Pusat / Toko',
+  'RUKO1': 'Sholeh (Ruko 1)',
+  'RUKO2': 'Nana (Ruko 2)',
+  'RUKO3': 'Vany (Ruko 3)',
+  'RUKO4': 'Cici (Ruko 4)',
+  'toko': 'Gudang Pusat / Toko',
+  'ruko1': 'Sholeh (Ruko 1)',
+  'ruko2': 'Nana (Ruko 2)',
+  'ruko3': 'Vany (Ruko 3)',
+  'ruko4': 'Cici (Ruko 4)',
+  'SEMUA': 'Semua Lokasi / Master'
+};
+
+function dapatkanNamaPJ(idLokasi) {
+  if (!idLokasi) return '-';
+  const kunci = idLokasi.toString().trim().toUpperCase();
+  if (kunci === 'RUKO1') return 'Sholeh';
+  if (kunci === 'RUKO2') return 'Nana';
+  if (kunci === 'RUKO3') return 'Vany';
+  if (kunci === 'RUKO4') return 'Cici';
+  if (kunci === 'TOKO') return 'Gudang / Toko';
+  return idLokasi;
+}
+
+function dapatkanNamaPJLengkap(idLokasi) {
+  if (!idLokasi) return '-';
+  const kunci = idLokasi.toString().trim();
+  return PETA_NAMA_PJ[kunci] || PETA_NAMA_PJ[kunci.toUpperCase()] || idLokasi;
+}
+
 // Daftar fungsi yang boleh dipanggil dari luar lewat API. HANYA fungsi yang didaftarkan di sini
 // yang bisa diakses -- ini juga jadi lapisan pembatas dasar (tidak semua fungsi di file ini
 // otomatis "terbuka" ke publik).
 const DAFTAR_FUNGSI_API = {
   login: prosesLogin,
+  ambilDaftarPengguna: ambilDaftarPengguna,
+  ambilDaftarProduk: ambilDaftarProduk,
   ambilDaftarLokasi: ambilDaftarLokasi,
   ambilDaftarSupplier: ambilDaftarSupplier,
   ambilSemuaStok: ambilSemuaStok,
@@ -407,7 +440,8 @@ const DAFTAR_FUNGSI_API = {
   ambilRingkasanBarangMasuk: ambilRingkasanBarangMasuk,
   ambilRingkasanTransfer: ambilRingkasanTransfer,
   ambilLaporanKeuangan: ambilLaporanKeuangan,
-  kirimLaporanPDF: kirimLaporanPDF
+  kirimLaporanPDF: kirimLaporanPDF,
+  unduhLaporanPDF: unduhLaporanPDF
 };
 
 function doGet(e) {
@@ -473,8 +507,59 @@ function keluaranJson(obj) {
 }
 
 // ==========================================
-// 2. OTENTIKASI / LOGIN
+// 2. OTENTIKASI / LOGIN & PENGGUNA
 // ==========================================
+
+function ambilDaftarPengguna() {
+  const ss = getDb();
+  const sheet = ss.getSheetByName('Pengguna');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const hasil = [];
+  for (let i = 1; i < data.length; i++) {
+    const username = data[i][0] ? data[i][0].toString().trim() : '';
+    const status = data[i][5] ? data[i][5].toString().trim().toUpperCase() : '';
+    if (username && status === 'AKTIF') {
+      const idLokasi = data[i][4] ? data[i][4].toString().trim() : '';
+      let labelTampilan = data[i][1] || username;
+      if (username === 'ruko1') labelTampilan = 'Sholeh (Ruko 1)';
+      else if (username === 'ruko2') labelTampilan = 'Nana (Ruko 2)';
+      else if (username === 'ruko3') labelTampilan = 'Vany (Ruko 3)';
+      else if (username === 'ruko4') labelTampilan = 'Cici (Ruko 4)';
+      else if (username === 'toko') labelTampilan = 'Gudang Pusat / Toko';
+      else if (idLokasi && PETA_NAMA_PJ[idLokasi]) labelTampilan = PETA_NAMA_PJ[idLokasi];
+
+      hasil.push({
+        username: username,
+        namaLengkap: data[i][1],
+        label: labelTampilan,
+        peran: data[i][3],
+        id_lokasi: idLokasi
+      });
+    }
+  }
+  return hasil;
+}
+
+function ambilDaftarProduk() {
+  const ss = getDb();
+  const sheet = ss.getSheetByName('Produk');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const hasil = [];
+  for (let i = 1; i < data.length; i++) {
+    const sku = data[i][0] ? data[i][0].toString().trim() : '';
+    const nama = data[i][1] ? data[i][1].toString().trim() : '';
+    if (sku) {
+      hasil.push({
+        sku: sku,
+        nama: nama,
+        label: `${sku} - ${nama}`
+      });
+    }
+  }
+  return hasil;
+}
 
 function prosesLogin(username, pin) {
   const ss = getDb();
@@ -486,11 +571,21 @@ function prosesLogin(username, pin) {
       if (data[i][5].toString().toUpperCase() !== 'AKTIF') {
         return { sukses: false, pesan: 'Akun dinonaktifkan. Hubungi Master.' };
       }
+      const idLok = data[i][4];
+      let labelTampilan = data[i][1];
+      if (username === 'ruko1') labelTampilan = 'Sholeh (Ruko 1)';
+      else if (username === 'ruko2') labelTampilan = 'Nana (Ruko 2)';
+      else if (username === 'ruko3') labelTampilan = 'Vany (Ruko 3)';
+      else if (username === 'ruko4') labelTampilan = 'Cici (Ruko 4)';
+      else if (username === 'toko') labelTampilan = 'Gudang Pusat / Toko';
+      else if (idLok && PETA_NAMA_PJ[idLok]) labelTampilan = PETA_NAMA_PJ[idLok];
+
       return {
         sukses: true,
-        namaLengkap: data[i][1],
+        namaLengkap: labelTampilan,
+        namaPJ: dapatkanNamaPJ(idLok),
         peran: data[i][3],
-        id_lokasi: data[i][4],
+        id_lokasi: idLok,
         username: username
       };
     }
@@ -534,7 +629,15 @@ function ambilDaftarLokasi() {
   const data = sheet.getDataRange().getValues();
   const hasil = [];
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0]) hasil.push({ id: data[i][0], nama: data[i][1], tipe: data[i][2] });
+    if (data[i][0]) {
+      const idLok = data[i][0];
+      hasil.push({
+        id: idLok,
+        nama: dapatkanNamaPJLengkap(idLok),
+        pj: dapatkanNamaPJ(idLok),
+        tipe: data[i][2]
+      });
+    }
   }
   return hasil;
 }
@@ -548,11 +651,14 @@ function ambilDaftarLokasi() {
  *   { "SKU-001": { detail: {...}, Total: 12, TOKO: 2, RUKO1: 7,
  *                  stokMinimum: 5, lokasiRendah: [{idLokasi: 'TOKO', stok: 2}], stokRendah: true }, ... }
  */
-function ambilSemuaStok() {
+function ambilSemuaStok(idLokasiFilter) {
   const ss = getDb();
   const sheetProduk = ss.getSheetByName('Produk');
   const produk = sheetProduk.getDataRange().getValues();
-  const daftarLokasi = ambilDaftarLokasi();
+  let daftarLokasi = ambilDaftarLokasi();
+  if (idLokasiFilter && idLokasiFilter !== 'SEMUA') {
+    daftarLokasi = daftarLokasi.filter(l => l.id === idLokasiFilter);
+  }
   const kolomMinimum = cariKolom(sheetProduk, 'Stok_Minimum');
 
   let petaProduk = {};
@@ -785,12 +891,14 @@ function transferStok(sku, dariLokasi, keLokasi, qty, pengguna) {
  * Menghitung total qty terjual per SKU dari data Barang_Keluar mulai dari batasWaktu (inklusif).
  * batasWaktu = null berarti TANPA filter tanggal (hitung semua baris yang ada di sheet).
  */
-function hitungDariBarangKeluar(ss, batasWaktu, tambahRekapFn) {
+function hitungDariBarangKeluar(ss, batasWaktu, tambahRekapFn, idLokasiFilter) {
   const sheetKeluar = ss.getSheetByName('Barang_Keluar');
   const data = sheetKeluar ? sheetKeluar.getDataRange().getValues() : [];
   for (let i = 1; i < data.length; i++) {
     const tipe = data[i][5];
     if (tipe !== 'KELUAR_ECER' && tipe !== 'KELUAR_GROSIR') continue;
+    const idLokasi = data[i][3];
+    if (idLokasiFilter && idLokasiFilter !== 'SEMUA' && idLokasi !== idLokasiFilter) continue;
 
     const waktuBaris = new Date(data[i][0]);
     if (isNaN(waktuBaris.getTime())) continue;
@@ -804,13 +912,8 @@ function hitungDariBarangKeluar(ss, batasWaktu, tambahRekapFn) {
 
 /**
  * periode: 'harian' | 'bulanan' | 'tahunan'.
- * PENTING: karena Barang_Keluar diarsipkan & direset tiap awal bulan (lihat
- * arsipkanBarangKeluarBulanan()), perhitungan 'tahunan' MENGGABUNGKAN data yang sudah diarsipkan
- * di Data_Tahunan (bulan-bulan sebelumnya di tahun berjalan) DENGAN data bulan berjalan yang
- * masih ada di Barang_Keluar -- supaya grafik/laporan tahunan tetap lengkap walau sheet
- * Barang_Keluar sendiri sudah beberapa kali direset sepanjang tahun.
  */
-function ambilProdukTerlaris(periode) {
+function ambilProdukTerlaris(periode, idLokasiFilter) {
   const ss = getDb();
   const produk = ss.getSheetByName('Produk').getDataRange().getValues();
 
@@ -836,12 +939,14 @@ function ambilProdukTerlaris(periode) {
       for (let i = 1; i < dataTahunan.length; i++) {
         if (Number(dataTahunan[i][0]) === sekarang.getFullYear()) {
           const sku = dataTahunan[i][2] ? dataTahunan[i][2].toString().trim() : "";
+          const idLokasi = dataTahunan[i][4];
+          if (idLokasiFilter && idLokasiFilter !== 'SEMUA' && idLokasi !== idLokasiFilter) continue;
           tambahRekap(sku, parseFloat(dataTahunan[i][7]) || 0);
         }
       }
     }
     // Ditambah data bulan berjalan yang belum sempat diarsipkan (masih di Barang_Keluar)
-    hitungDariBarangKeluar(ss, null, tambahRekap);
+    hitungDariBarangKeluar(ss, null, tambahRekap, idLokasiFilter);
   } else {
     let batasWaktu;
     if (periode === 'harian') {
@@ -849,19 +954,13 @@ function ambilProdukTerlaris(periode) {
     } else { // bulanan
       batasWaktu = new Date(sekarang.getFullYear(), sekarang.getMonth(), 1);
     }
-    hitungDariBarangKeluar(ss, batasWaktu, tambahRekap);
+    hitungDariBarangKeluar(ss, batasWaktu, tambahRekap, idLokasiFilter);
   }
 
   return Object.keys(rekap).map(k => rekap[k]).sort((a, b) => b.qty - a.qty).slice(0, 8);
 }
 
-/**
- * Sama seperti ambilProdukTerlaris('bulanan'), TAPI tanpa filter tanggal sama sekali. Dipakai
- * KHUSUS oleh trigger laporan bulanan, yang jalan di awal bulan SEBELUM arsip+reset -- di titik
- * itu Barang_Keluar cuma berisi data bulan yang baru saja selesai, jadi filter "mulai awal bulan
- * INI" justru salah (karena bulan baru saja mulai, hasilnya jadi kosong).
- */
-function ambilProdukTerlarisSemuaBarangKeluar() {
+function ambilProdukTerlarisSemuaBarangKeluar(idLokasiFilter) {
   const ss = getDb();
   const produk = ss.getSheetByName('Produk').getDataRange().getValues();
   let petaNama = {};
@@ -875,16 +974,10 @@ function ambilProdukTerlarisSemuaBarangKeluar() {
     if (!rekap[sku]) rekap[sku] = { sku: sku, nama: petaNama[sku] || sku, qty: 0 };
     rekap[sku].qty += qty;
   }
-  hitungDariBarangKeluar(ss, null, tambahRekap);
+  hitungDariBarangKeluar(ss, null, tambahRekap, idLokasiFilter);
   return Object.keys(rekap).map(k => rekap[k]).sort((a, b) => b.qty - a.qty).slice(0, 8);
 }
 
-/**
- * Batas awal periode (harian/bulanan/tahunan), dihitung relatif terhadap tanggalReferensi
- * (default: sekarang). Parameter referensi ini PENTING dipakai saat laporan dipicu trigger
- * bulanan -- di titik itu "sekarang" sudah masuk bulan baru, padahal yang mau dilaporkan
- * adalah bulan yang BARU SAJA SELESAI, jadi referensinya perlu digeser ke bulan lalu.
- */
 function tentukanBatasWaktu(periode, tanggalReferensi) {
   const ref = tanggalReferensi || new Date();
   if (periode === 'harian') return new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
@@ -902,18 +995,6 @@ function petaNamaProduk(ss) {
   return peta;
 }
 
-/**
- * Peta SKU -> {nama, hargaEcer, hargaGrosir, stokMinimum}, dipakai untuk cek ambang batas
- * peringatan stok (tambahTransaksi) dan sebagai FALLBACK laporan keuangan/arsip tahunan untuk
- * baris Barang_Keluar LAMA yang belum punya Harga_Satuan tersimpan sendiri.
- * CATATAN: hargaEcer/hargaGrosir DIBACA APA ADANYA dari kolom "Harga Ecer"/"Harga Grosir" kalau
- * masih ada di sheet (peninggalan versi lama) -- kolom ini TIDAK PERNAH lagi ditulis oleh
- * tambahProduk()/perbaruiProduk(), karena produk sekarang tidak lagi punya harga katalog; harga
- * jual murni diketik manual tiap transaksi (lihat tambahTransaksi()). Nilainya cuma dipakai
- * sebagai jaring pengaman untuk data historis, bukan sumber harga aktif.
- * Stok_Minimum dicari lewat nama header (cariKolom), bukan indeks tetap, supaya aman walau
- * posisi kolomnya berbeda antar spreadsheet lama & baru.
- */
 function ambilDetailProdukSemua(ss) {
   const sheet = ss.getSheetByName('Produk');
   const produk = sheet.getDataRange().getValues();
@@ -934,10 +1015,9 @@ function ambilDetailProdukSemua(ss) {
 }
 
 /**
- * Ringkasan PENJUALAN (ecer/grosir) per SKU per lokasi, untuk periode & referensi tanggal
- * tertentu. Dipakai di laporan PDF ("Data Penjualan Bulanan").
+ * Ringkasan PENJUALAN (ecer/grosir) per SKU per lokasi, untuk periode & referensi tanggal tertentu.
  */
-function ambilRingkasanPenjualan(periode, tanggalReferensi) {
+function ambilRingkasanPenjualan(periode, tanggalReferensi, idLokasiFilter) {
   const ss = getDb();
   const petaNama = petaNamaProduk(ss);
   const batasWaktu = tentukanBatasWaktu(periode, tanggalReferensi);
@@ -953,9 +1033,10 @@ function ambilRingkasanPenjualan(periode, tanggalReferensi) {
     const qty = parseFloat(data[i][4]) || 0;
     const tipe = data[i][5];
     if (!sku || !idLokasi) continue;
+    if (idLokasiFilter && idLokasiFilter !== 'SEMUA' && idLokasi !== idLokasiFilter) continue;
 
     const kunci = sku + '|' + idLokasi;
-    if (!rekap[kunci]) rekap[kunci] = { sku: sku, nama: petaNama[sku] || sku, idLokasi: idLokasi, ecer: 0, grosir: 0 };
+    if (!rekap[kunci]) rekap[kunci] = { sku: sku, nama: petaNama[sku] || sku, idLokasi: idLokasi, namaLokasi: dapatkanNamaPJLengkap(idLokasi), ecer: 0, grosir: 0 };
     if (tipe === 'KELUAR_ECER') rekap[kunci].ecer += qty;
     else if (tipe === 'KELUAR_GROSIR') rekap[kunci].grosir += qty;
   }
@@ -967,10 +1048,9 @@ function ambilRingkasanPenjualan(periode, tanggalReferensi) {
 }
 
 /**
- * Ringkasan BARANG MASUK (restock) per SKU per lokasi per sumber (Penjahit/Supplier), untuk
- * periode & referensi tanggal tertentu. Dipakai di laporan PDF ("Data Barang Masuk Bulanan").
+ * Ringkasan BARANG MASUK (restock) per SKU per lokasi per sumber.
  */
-function ambilRingkasanBarangMasuk(periode, tanggalReferensi) {
+function ambilRingkasanBarangMasuk(periode, tanggalReferensi, idLokasiFilter) {
   const ss = getDb();
   const petaNama = petaNamaProduk(ss);
   const batasWaktu = tentukanBatasWaktu(periode, tanggalReferensi);
@@ -987,20 +1067,19 @@ function ambilRingkasanBarangMasuk(periode, tanggalReferensi) {
     const sumber = data[i][8] || 'Penjahit';
     const namaSupplier = data[i][9] || '';
     if (!sku || !idLokasi) continue;
+    if (idLokasiFilter && idLokasiFilter !== 'SEMUA' && idLokasi !== idLokasiFilter) continue;
 
     const kunci = sku + '|' + idLokasi + '|' + sumber + '|' + namaSupplier;
-    if (!rekap[kunci]) rekap[kunci] = { sku: sku, nama: petaNama[sku] || sku, idLokasi: idLokasi, sumber: sumber, namaSupplier: namaSupplier, qty: 0 };
+    if (!rekap[kunci]) rekap[kunci] = { sku: sku, nama: petaNama[sku] || sku, idLokasi: idLokasi, namaLokasi: dapatkanNamaPJLengkap(idLokasi), sumber: sumber, namaSupplier: namaSupplier, qty: 0 };
     rekap[kunci].qty += qty;
   }
   return Object.keys(rekap).map(k => rekap[k]).sort((a, b) => b.qty - a.qty);
 }
 
 /**
- * Ringkasan TRANSFER antar lokasi, untuk periode & referensi tanggal tertentu. Cukup baca dari
- * Transfer_Keluar saja (satu baris = satu transfer, sudah mewakili dua sisi) supaya tidak dobel
- * dengan Transfer_Masuk. Dipakai di laporan PDF ("Data Transfer Bulanan").
+ * Ringkasan TRANSFER antar lokasi.
  */
-function ambilRingkasanTransfer(periode, tanggalReferensi) {
+function ambilRingkasanTransfer(periode, tanggalReferensi, idLokasiFilter) {
   const ss = getDb();
   const petaNama = petaNamaProduk(ss);
   const batasWaktu = tentukanBatasWaktu(periode, tanggalReferensi);
@@ -1013,11 +1092,17 @@ function ambilRingkasanTransfer(periode, tanggalReferensi) {
     if (isNaN(waktu.getTime()) || waktu < batasWaktu) continue;
     const sku = data[i][2] ? data[i][2].toString().trim() : '';
     if (!sku) continue;
+    const dari = data[i][3];
+    const ke = data[i][4];
+    if (idLokasiFilter && idLokasiFilter !== 'SEMUA' && dari !== idLokasiFilter && ke !== idLokasiFilter) continue;
+
     hasil.push({
       sku: sku,
       nama: petaNama[sku] || sku,
-      dari: data[i][3],
-      ke: data[i][4],
+      dari: dari,
+      namaDari: dapatkanNamaPJLengkap(dari),
+      ke: ke,
+      namaKe: dapatkanNamaPJLengkap(ke),
       qty: parseFloat(data[i][5]) || 0
     });
   }
@@ -1025,30 +1110,28 @@ function ambilRingkasanTransfer(periode, tanggalReferensi) {
 }
 
 /**
- * Laporan KEUANGAN penjualan (omset) per lokasi, untuk periode & referensi tanggal tertentu.
- * Beda dengan ambilRingkasanPenjualan (yang per SKU): ini fokus ke NILAI RUPIAH per lokasi,
- * dipakai untuk "Laporan Keuangan" yang terpisah dari "Laporan Stok".
- * Return: { perLokasi: [{idLokasi, namaLokasi, qtyEcer, qtyGrosir, omsetEcer, omsetGrosir, omsetTotal}],
- *           grandTotal: {omsetEcer, omsetGrosir, omsetTotal} }
+ * Laporan KEUANGAN penjualan (omset) per lokasi.
  */
-function ambilLaporanKeuangan(periode, tanggalReferensi) {
+function ambilLaporanKeuangan(periode, tanggalReferensi, idLokasiFilter) {
   const ss = getDb();
-  const daftarLokasi = ambilDaftarLokasi();
+  let daftarLokasi = ambilDaftarLokasi();
+  if (idLokasiFilter && idLokasiFilter !== 'SEMUA') {
+    daftarLokasi = daftarLokasi.filter(l => l.id === idLokasiFilter);
+  }
   const detailProduk = ambilDetailProdukSemua(ss);
 
   let rekapLokasi = {};
   daftarLokasi.forEach(function (l) {
-    rekapLokasi[l.id] = { idLokasi: l.id, namaLokasi: l.nama, qtyEcer: 0, qtyGrosir: 0, omsetEcer: 0, omsetGrosir: 0 };
+    rekapLokasi[l.id] = { idLokasi: l.id, namaLokasi: dapatkanNamaPJLengkap(l.id), pj: dapatkanNamaPJ(l.id), qtyEcer: 0, qtyGrosir: 0, omsetEcer: 0, omsetGrosir: 0 };
   });
 
   function tambahDariBaris(row) {
     const idLokasi = row[3];
+    if (idLokasiFilter && idLokasiFilter !== 'SEMUA' && idLokasi !== idLokasiFilter) return;
     const qty = parseFloat(row[4]) || 0;
     const tipe = row[5];
     const sku = row[2] ? row[2].toString().trim() : '';
 
-    // Harga_Satuan (kolom index 8) -- fallback ke harga produk saat ini untuk baris lama
-    // sebelum kolom ini ada.
     let harga = parseFloat(row[8]) || 0;
     if (!harga) {
       const d = detailProduk[sku];
@@ -1056,14 +1139,12 @@ function ambilLaporanKeuangan(periode, tanggalReferensi) {
     }
     const nilai = qty * harga;
 
-    if (!rekapLokasi[idLokasi]) rekapLokasi[idLokasi] = { idLokasi: idLokasi, namaLokasi: idLokasi, qtyEcer: 0, qtyGrosir: 0, omsetEcer: 0, omsetGrosir: 0 };
+    if (!rekapLokasi[idLokasi]) rekapLokasi[idLokasi] = { idLokasi: idLokasi, namaLokasi: dapatkanNamaPJLengkap(idLokasi), pj: dapatkanNamaPJ(idLokasi), qtyEcer: 0, qtyGrosir: 0, omsetEcer: 0, omsetGrosir: 0 };
     if (tipe === 'KELUAR_ECER') { rekapLokasi[idLokasi].qtyEcer += qty; rekapLokasi[idLokasi].omsetEcer += nilai; }
     else if (tipe === 'KELUAR_GROSIR') { rekapLokasi[idLokasi].qtyGrosir += qty; rekapLokasi[idLokasi].omsetGrosir += nilai; }
   }
 
   if (periode === 'tahunan') {
-    // Bulan-bulan yang sudah diarsipkan tahun ini -- pakai Omset_xxx yang sudah tersimpan,
-    // TIDAK dihitung ulang dari harga sekarang (supaya akurat historis).
     const sheetTahunan = ss.getSheetByName('Data_Tahunan');
     if (sheetTahunan) {
       const dataTahunan = sheetTahunan.getDataRange().getValues();
@@ -1071,14 +1152,14 @@ function ambilLaporanKeuangan(periode, tanggalReferensi) {
       for (let i = 1; i < dataTahunan.length; i++) {
         if (Number(dataTahunan[i][0]) !== sekarang.getFullYear()) continue;
         const idLokasi = dataTahunan[i][4];
-        if (!rekapLokasi[idLokasi]) rekapLokasi[idLokasi] = { idLokasi: idLokasi, namaLokasi: idLokasi, qtyEcer: 0, qtyGrosir: 0, omsetEcer: 0, omsetGrosir: 0 };
+        if (idLokasiFilter && idLokasiFilter !== 'SEMUA' && idLokasi !== idLokasiFilter) continue;
+        if (!rekapLokasi[idLokasi]) rekapLokasi[idLokasi] = { idLokasi: idLokasi, namaLokasi: dapatkanNamaPJLengkap(idLokasi), pj: dapatkanNamaPJ(idLokasi), qtyEcer: 0, qtyGrosir: 0, omsetEcer: 0, omsetGrosir: 0 };
         rekapLokasi[idLokasi].qtyEcer += parseFloat(dataTahunan[i][5]) || 0;
         rekapLokasi[idLokasi].qtyGrosir += parseFloat(dataTahunan[i][6]) || 0;
         rekapLokasi[idLokasi].omsetEcer += parseFloat(dataTahunan[i][9]) || 0;
         rekapLokasi[idLokasi].omsetGrosir += parseFloat(dataTahunan[i][10]) || 0;
       }
     }
-    // Ditambah bulan berjalan yang belum sempat diarsipkan (masih di Barang_Keluar)
     const sheetKeluar = ss.getSheetByName('Barang_Keluar');
     const data = sheetKeluar ? sheetKeluar.getDataRange().getValues() : [];
     for (let i = 1; i < data.length; i++) {
@@ -1319,6 +1400,61 @@ function kirimLaporanPDF(periode, produkTerlarisOverride, tanggalReferensi) {
   });
 
   return { sukses: true, pesan: "Laporan berhasil dikirim ke email owner!" };
+}
+
+/**
+ * Meng-generate PDF Laporan khusus per ruko/toko (atau gabungan) dan mengembalikan data Base64
+ * agar langsung di-download di browser oleh user.
+ */
+function unduhLaporanPDF(periode, idLokasiFilter) {
+  periode = periode || 'bulanan';
+  const ref = new Date();
+
+  const dataStok = ambilSemuaStok(idLokasiFilter);
+  let daftarLokasi = ambilDaftarLokasi();
+  if (idLokasiFilter && idLokasiFilter !== 'SEMUA') {
+    daftarLokasi = daftarLokasi.filter(l => l.id === idLokasiFilter);
+  }
+
+  const produkTerlaris = ambilProdukTerlaris(periode, idLokasiFilter);
+  const ringkasanPenjualan = ambilRingkasanPenjualan(periode, ref, idLokasiFilter);
+  const ringkasanBarangMasuk = ambilRingkasanBarangMasuk(periode, ref, idLokasiFilter);
+  const ringkasanTransfer = ambilRingkasanTransfer(periode, ref, idLokasiFilter);
+  const laporanKeuangan = ambilLaporanKeuangan(periode, ref, idLokasiFilter);
+  const grafikBlob = buatGrafikPNG(produkTerlaris, `Produk Terlaris (${periode})`);
+  const grafikBase64 = grafikBlob ? Utilities.base64Encode(grafikBlob.getBytes()) : null;
+  const grafikOmsetData = laporanKeuangan.perLokasi.map(r => ({ nama: r.namaLokasi, qty: Math.round(r.omsetTotal) }));
+  const grafikOmsetBlob = buatGrafikPNG(grafikOmsetData, `Omset Penjualan (${periode})`);
+  const grafikOmsetBase64 = grafikOmsetBlob ? Utilities.base64Encode(grafikOmsetBlob.getBytes()) : null;
+
+  const namaPJHeader = (idLokasiFilter && idLokasiFilter !== 'SEMUA') ? dapatkanNamaPJLengkap(idLokasiFilter) : 'Semua Lokasi / Master';
+
+  const template = HtmlService.createTemplateFromFile('TemplatePdf');
+  template.data = dataStok;
+  template.daftarLokasi = daftarLokasi;
+  template.produkTerlaris = produkTerlaris;
+  template.ringkasanPenjualan = ringkasanPenjualan;
+  template.ringkasanBarangMasuk = ringkasanBarangMasuk;
+  template.ringkasanTransfer = ringkasanTransfer;
+  template.laporanKeuangan = laporanKeuangan;
+  template.grafikBase64 = grafikBase64;
+  template.grafikOmsetBase64 = grafikOmsetBase64;
+  template.periode = periode;
+  template.namaPJHeader = namaPJHeader;
+
+  const htmlContent = template.evaluate().getContent();
+  const blob = Utilities.newBlob(htmlContent, 'text/html', 'Laporan.html');
+  const pdf = blob.getAs('application/pdf');
+  const base64Pdf = Utilities.base64Encode(pdf.getBytes());
+
+  const namaFile = `Laporan_${namaPJHeader.replace(/[^a-zA-Z0-9]/g, '_')}_${periode}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+  return {
+    sukses: true,
+    fileBase64: base64Pdf,
+    namaFile: namaFile,
+    mimeType: 'application/pdf'
+  };
 }
 
 function triggerLaporanBulanan() {

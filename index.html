@@ -39,7 +39,6 @@
   <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
 
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
@@ -59,9 +58,7 @@
 
     .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
     .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
-    #input-foto-qr { display: none; }
     * { -webkit-tap-highlight-color: transparent; }
-    #pembaca-qr-dummy { visibility: hidden; position: absolute; height: 1px; width: 1px; overflow: hidden; }
     .barcode-wrap { max-width: 100%; overflow-x: auto; }
   </style>
 </head>
@@ -92,7 +89,16 @@
         <p class="text-sm text-[#6F4E37]">Masuk untuk mengelola stok</p>
       </div>
       <div class="space-y-4">
-        <input type="text" id="input-username" placeholder="Username" class="w-full p-4 border border-[#D6C5B3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8B5A2B] text-lg bg-white shadow-inner">
+        <select id="input-username" class="w-full p-4 border border-[#D6C5B3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8B5A2B] text-lg bg-white shadow-inner font-semibold text-[#3E2723]">
+          <option value="">-- Pilih Akun Staff (PJ) --</option>
+          <option value="ruko1">Sholeh (Ruko 1)</option>
+          <option value="ruko2">Nana (Ruko 2)</option>
+          <option value="ruko3">Vany (Ruko 3)</option>
+          <option value="ruko4">Cici (Ruko 4)</option>
+          <option value="toko">Gudang Pusat / Toko</option>
+          <option value="owner">Pemilik / Owner</option>
+          <option value="master">Administrator Master</option>
+        </select>
         <input type="password" id="input-pin" placeholder="PIN" class="w-full p-4 border border-[#D6C5B3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8B5A2B] text-lg bg-white shadow-inner">
         <button onclick="masukSistem()" class="w-full bg-[#4A3018] text-white p-4 rounded-xl font-bold text-lg shadow-lg active:bg-[#2C1C0E] transition-transform active:scale-95">MASUK</button>
       </div>
@@ -107,15 +113,11 @@
         <div class="w-10 h-10 bg-[#4A3018] rounded-full flex items-center justify-center text-white text-xl shrink-0">👤</div>
       </div>
 
-      <label for="input-foto-qr" class="w-full bg-[#8B5A2B] text-white p-4 rounded-xl font-bold mb-6 flex justify-center items-center shadow-lg active:bg-[#6F4E37] cursor-pointer transition-transform active:scale-95">
-        <svg class="w-7 h-7 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664-.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-        <span class="truncate">JEPRET BARCODE</span>
-      </label>
-      <input type="file" id="input-foto-qr" accept="image/*" capture="environment" onchange="prosesFotoBarcode(event)">
-
       <div class="bg-[#FDF8F3] p-5 rounded-xl shadow-md border border-[#EEDDC8]">
         <h4 class="font-bold mb-4 text-[#4A3018] text-lg border-b border-[#D6C5B3] pb-2">Formulir Transaksi</h4>
-        <input type="text" id="input-sku" placeholder="cth: MUK-001" class="w-full mb-4 p-3 border border-[#D6C5B3] rounded-lg uppercase focus:ring-2 focus:ring-[#8B5A2B] outline-none font-bold text-gray-800">
+        <select id="input-sku" class="w-full mb-4 p-3 border border-[#D6C5B3] rounded-lg bg-white focus:ring-2 focus:ring-[#8B5A2B] outline-none font-bold text-gray-800">
+          <option value="">-- Pilih SKU Produk --</option>
+        </select>
         <input type="number" id="input-qty" placeholder="0" class="w-full mb-4 p-3 border border-[#D6C5B3] rounded-lg focus:ring-2 focus:ring-[#8B5A2B] outline-none text-xl font-bold">
         <select id="input-tipe" onchange="ubahTampilanFormTipe()" class="w-full mb-4 p-3 border border-[#D6C5B3] rounded-lg bg-white focus:ring-2 focus:ring-[#8B5A2B] outline-none font-semibold text-[#3E2723]"></select>
 
@@ -163,7 +165,9 @@
     <div id="tampilan-buat-qr" class="p-4 hidden flex-grow pb-24">
       <div class="bg-white p-5 rounded-xl shadow-md border border-[#D6C5B3] text-center mt-2">
         <h4 class="font-bold mb-4 text-[#4A3018] text-xl">Generator Label Barcode</h4>
-        <input type="text" id="teks-barcode" placeholder="Ketik ID Produk" class="w-full mb-6 p-3 border-2 border-[#EEDDC8] rounded-xl uppercase text-center font-bold text-lg focus:outline-none focus:border-[#8B5A2B]" oninput="buatGambarBarcode()">
+        <select id="teks-barcode" onchange="buatGambarBarcode()" class="w-full mb-6 p-3 border-2 border-[#EEDDC8] rounded-xl bg-white text-center font-bold text-lg focus:outline-none focus:border-[#8B5A2B]">
+          <option value="">-- Pilih SKU Produk --</option>
+        </select>
         <div class="barcode-wrap flex justify-center bg-[#FDF8F3] py-6 rounded-xl mb-6 border border-[#EEDDC8] shadow-inner">
           <svg id="svg-barcode"></svg>
         </div>
@@ -173,11 +177,18 @@
 
     <div id="tampilan-laporan" class="p-4 hidden flex-grow pb-24">
       <div class="flex justify-between items-center mb-4 gap-2">
-        <h2 class="text-lg font-bold text-[#4A3018] truncate">Laporan & Analisis</h2>
-        <button onclick="muatLaporanStok()" class="bg-[#EEDDC8] text-[#4A3018] px-3 py-2 rounded-lg font-bold text-xs shadow active:bg-[#D6C5B3] shrink-0">Muat Ulang</button>
+        <div>
+          <h2 class="text-lg font-bold text-[#4A3018] truncate">Laporan & Analisis</h2>
+          <p id="sub-judul-laporan" class="text-xs text-[#6F4E37] font-semibold"></p>
+        </div>
+        <button onclick="refreshSemuaLaporan()" class="bg-[#EEDDC8] text-[#4A3018] px-3 py-2 rounded-lg font-bold text-xs shadow active:bg-[#D6C5B3] shrink-0">Muat Ulang</button>
       </div>
 
       <div id="banner-stok-rendah" class="hidden bg-red-100 border border-red-300 text-red-700 text-xs rounded-lg p-3 mb-4 leading-relaxed"></div>
+
+      <button id="btn-unduh-pdf-ruko" onclick="unduhPDFLaporan()" class="w-full mb-4 bg-[#4A3018] text-white p-3 rounded-xl font-bold shadow-md active:bg-[#2C1C0E] text-sm flex items-center justify-center gap-2">
+        📥 Download Laporan PDF (PJ &amp; Periode)
+      </button>
 
       <div class="grid grid-cols-3 gap-2 mb-4">
         <div class="bg-[#EEDDC8] rounded-lg p-2 text-center">
@@ -248,7 +259,7 @@
     <nav id="navigasi-bawah" class="hidden fixed bottom-0 w-full max-w-md bg-white border-t border-[#D6C5B3] flex justify-around text-xs font-bold text-gray-400 shadow-[0_-5px_15px_rgba(74,48,24,0.1)] pb-safe z-50">
       <button id="nav-transaksi" onclick="gantiTampilan('tampilan-transaksi')" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors"><div class="text-2xl mb-1">📦</div>Transaksi</button>
       <button id="nav-buat-qr" onclick="gantiTampilan('tampilan-buat-qr'); buatGambarBarcode();" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors"><div class="text-2xl mb-1">🏷️</div>Label</button>
-      <button id="nav-laporan" onclick="gantiTampilan('tampilan-laporan'); muatLaporanStok(); muatProdukTerlaris(); muatRingkasanBulanan(); muatLaporanKeuangan();" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors">
+      <button id="nav-laporan" onclick="gantiTampilan('tampilan-laporan'); refreshSemuaLaporan();" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors">
         <div class="text-2xl mb-1 relative inline-block">
           📊
           <span id="badge-stok-rendah" class="hidden absolute -top-1 -right-2 bg-red-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">!</span>
@@ -272,8 +283,6 @@
       </div>
     </div>
   </div>
-
-  <div id="pembaca-qr-dummy"></div>
 
   <script>
     // ===================================================================
@@ -316,10 +325,42 @@
 
     let penggunaSaatIni = null;
     let daftarLokasiCache = [];
-    let scannerBerkas = new Html5Qrcode("pembaca-qr-dummy");
     let grafikTerlarisChart = null;
     let periodeAktif = 'harian';
     let audioCtx = null;
+
+    const PETA_PJ = {
+      'RUKO1': 'Sholeh',
+      'RUKO2': 'Nana',
+      'RUKO3': 'Vany',
+      'RUKO4': 'Cici',
+      'TOKO': 'Gudang / Toko',
+      'ruko1': 'Sholeh',
+      'ruko2': 'Nana',
+      'ruko3': 'Vany',
+      'ruko4': 'Cici',
+      'toko': 'Gudang / Toko'
+    };
+
+    function formatPJ(id) {
+      if (!id) return '-';
+      return PETA_PJ[id] || PETA_PJ[id.toUpperCase()] || id;
+    }
+
+    function formatPJLengkap(id) {
+      if (!id) return '-';
+      const pj = formatPJ(id);
+      if (pj === id) return id;
+      return `${pj} (${id})`;
+    }
+
+    function getFilterLokasiAktif() {
+      if (!penggunaSaatIni) return 'SEMUA';
+      if (penggunaSaatIni.peran === 'owner' || penggunaSaatIni.peran === 'master' || penggunaSaatIni.id_lokasi === 'SEMUA') {
+        return 'SEMUA';
+      }
+      return penggunaSaatIni.id_lokasi;
+    }
 
     // ===== Efek Suara (Web Audio API, tidak perlu file audio eksternal) =====
     function pastikanAudioContext() {
@@ -397,10 +438,10 @@
     }
 
     function masukSistem() {
-      pastikanAudioContext(); // buka izin audio lewat gesture user (wajib untuk iOS)
+      pastikanAudioContext();
       const u = document.getElementById('input-username').value.trim();
       const p = document.getElementById('input-pin').value;
-      if (!u || !p) return tampilkanPesan('Harap isi Username dan PIN!', false);
+      if (!u || !p) return tampilkanPesan('Harap pilih Akun Staff dan isi PIN!', false);
       tampilkanLoading(true, "Mencocokkan...");
       panggilAPI('login', [u, p]).then(res => {
         tampilkanLoading(false);
@@ -418,6 +459,8 @@
     }
 
     function cobaPulihkanSesi() {
+      muatDaftarPenggunaAPI();
+      muatDaftarProdukAPI();
       const sesi = localStorage.getItem('sesi_faminis');
       if (sesi) {
         try {
@@ -429,21 +472,39 @@
       }
     }
 
-    /**
-     * Peran yang dikenal sistem:
-     * - 'master'      : akses transaksi, label barcode, laporan (tambah produk dikontrol di spreadsheet)
-     * - 'owner'       : cuma laporan
-     * - 'kasir_admin' : transaksi sesuai lokasi + laporan
-     * - 'kasir'       : cuma transaksi sesuai lokasi
-     */
+    function muatDaftarProdukAPI() {
+      panggilAPI('ambilDaftarProduk', []).then(produkList => {
+        const selTrx = document.getElementById('input-sku');
+        const selLabel = document.getElementById('teks-barcode');
+        
+        let htmlStr = `<option value="">-- Pilih SKU Produk --</option>`;
+        htmlStr += produkList.map(p => `<option value="${p.sku}">${p.label}</option>`).join('');
+        
+        if (selTrx) selTrx.innerHTML = htmlStr;
+        if (selLabel) selLabel.innerHTML = htmlStr;
+      }).catch(() => {});
+    }
+
+    function muatDaftarPenggunaAPI() {
+      panggilAPI('ambilDaftarPengguna', []).then(userList => {
+        const selUser = document.getElementById('input-username');
+        if (!selUser || userList.length === 0) return;
+        let htmlUser = `<option value="">-- Pilih Akun Staff (PJ) --</option>`;
+        htmlUser += userList.map(u => `<option value="${u.username}">${u.label}</option>`).join('');
+        selUser.innerHTML = htmlUser;
+      }).catch(() => {});
+    }
+
     function siapkanDashboard() {
       document.getElementById('btnKeluar').classList.remove('hidden');
       document.getElementById('navigasi-bawah').classList.remove('hidden');
-      document.getElementById('info-lokasi').textContent = `${penggunaSaatIni.namaLengkap} (${penggunaSaatIni.id_lokasi})`;
+      
+      const labelUser = penggunaSaatIni.namaLengkap || formatPJLengkap(penggunaSaatIni.id_lokasi);
+      document.getElementById('info-lokasi').textContent = labelUser;
 
       const p = penggunaSaatIni.peran;
       const btnKirimLaporan = document.getElementById('btn-kirim-laporan');
-      const bisaLihatLaporan = (p === 'owner' || p === 'master' || p === 'kasir_admin');
+      const btnUnduhPdf = document.getElementById('btn-unduh-pdf-ruko');
 
       const dropdownTipe = document.getElementById('input-tipe');
       dropdownTipe.innerHTML = `<option value="KELUAR_ECER">Jual Ecer</option><option value="KELUAR_GROSIR">Jual Grosir</option><option value="TRANSFER">🔄 Transfer ke Lokasi Lain</option>`;
@@ -452,11 +513,14 @@
       }
       ubahTampilanFormTipe();
 
+      // Muat daftar SKU dan Lokasi
+      muatDaftarProdukAPI();
+
       panggilAPI('ambilDaftarLokasi', []).then(daftarLokasi => {
         daftarLokasiCache = daftarLokasi;
         const selDari = document.getElementById('input-dari-lokasi');
         const selKe = document.getElementById('input-ke-lokasi');
-        const opsiHtml = daftarLokasi.map(l => `<option value="${l.id}">${l.nama}</option>`).join('');
+        const opsiHtml = daftarLokasi.map(l => `<option value="${l.id}">${l.nama || formatPJLengkap(l.id)}</option>`).join('');
         selDari.innerHTML = opsiHtml;
         selKe.innerHTML = opsiHtml;
         if (penggunaSaatIni.peran !== 'master') {
@@ -466,41 +530,33 @@
           selDari.disabled = false;
         }
 
-        if (p === 'owner') {
-          document.getElementById('nav-transaksi').style.display = 'none';
-          document.getElementById('nav-buat-qr').style.display = 'none';
-          document.getElementById('nav-laporan').style.display = 'block';
-          btnKirimLaporan.classList.remove('hidden');
-          gantiTampilan('tampilan-laporan');
-          muatLaporanStok();
-          muatProdukTerlaris();
-          muatRingkasanBulanan();
-          muatLaporanKeuangan();
-        } else if (p === 'kasir_admin') {
-          document.getElementById('nav-transaksi').style.display = 'block';
-          document.getElementById('nav-buat-qr').style.display = 'none';
-          document.getElementById('nav-laporan').style.display = 'block';
-          btnKirimLaporan.classList.remove('hidden');
-          gantiTampilan('tampilan-transaksi');
-        } else if (p === 'kasir') {
-          document.getElementById('nav-transaksi').style.display = 'block';
-          document.getElementById('nav-buat-qr').style.display = 'none';
-          document.getElementById('nav-laporan').style.display = 'none';
-          btnKirimLaporan.classList.add('hidden');
-          gantiTampilan('tampilan-transaksi');
-        } else {
-          // master: hanya bisa bikin kode (label barcode) & lihat laporan
-          document.getElementById('nav-transaksi').style.display = 'none';
-          document.getElementById('nav-buat-qr').style.display = 'block';
-          document.getElementById('nav-laporan').style.display = 'block';
-          btnKirimLaporan.classList.remove('hidden');
-          gantiTampilan('tampilan-buat-qr');
-          buatGambarBarcode();
+        // SEMUA ruko/toko bisa lihat Laporan masing-masing & download PDF!
+        document.getElementById('nav-transaksi').style.display = (p === 'owner' ? 'none' : 'block');
+        document.getElementById('nav-buat-qr').style.display = (p === 'master' ? 'block' : 'none');
+        document.getElementById('nav-laporan').style.display = 'block';
+
+        if (btnKirimLaporan) {
+          btnKirimLaporan.classList.toggle('hidden', !(p === 'owner' || p === 'master'));
+        }
+        if (btnUnduhPdf) btnUnduhPdf.classList.remove('hidden');
+
+        // Sub-judul laporan menunjukkan nama PJ / Lokasi yang aktif
+        const subJudul = document.getElementById('sub-judul-laporan');
+        if (subJudul) {
+          subJudul.textContent = `Laporan untuk: ${formatPJLengkap(getFilterLokasiAktif())}`;
         }
 
-        if (bisaLihatLaporan) {
-          panggilAPI('ambilSemuaStok', []).then(perbaruiBadgeStokRendah).catch(() => {});
+        if (p === 'owner') {
+          gantiTampilan('tampilan-laporan');
+          refreshSemuaLaporan();
+        } else if (p === 'master') {
+          gantiTampilan('tampilan-buat-qr');
+          buatGambarBarcode();
+        } else {
+          gantiTampilan('tampilan-transaksi');
         }
+
+        panggilAPI('ambilSemuaStok', [getFilterLokasiAktif()]).then(perbaruiBadgeStokRendah).catch(() => {});
       }).catch(err => tampilkanPesan('Gagal memuat daftar lokasi.', false));
 
       panggilAPI('ambilDaftarSupplier', []).then(daftarSupplier => {
@@ -523,31 +579,11 @@
       document.getElementById('blok-nama-supplier').classList.toggle('hidden', sumber !== 'Supplier');
     }
 
-    function prosesFotoBarcode(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      tampilkanLoading(true, "Memindai gambar...");
-
-      scannerBerkas.scanFile(file, true)
-        .then(res => {
-          tampilkanLoading(false);
-          mainkanBunyi(true);
-          document.getElementById('input-sku').value = res;
-          event.target.value = '';
-        })
-        .catch(err => {
-          tampilkanLoading(false);
-          mainkanBunyi(false);
-          tampilkanPesan("Gagal membaca barcode. Coba ambil foto yang lebih jelas dan fokus.", false);
-          event.target.value = '';
-        });
-    }
-
     function simpanTransaksi() {
       const sku = document.getElementById('input-sku').value.trim().toUpperCase();
       const qty = parseInt(document.getElementById('input-qty').value);
       const tipe = document.getElementById('input-tipe').value;
-      if (!sku || isNaN(qty) || qty <= 0) return tampilkanPesan('Cek SKU dan Jumlah!', false);
+      if (!sku || isNaN(qty) || qty <= 0) return tampilkanPesan('Pilih Produk (SKU) dan isi Qty!', false);
 
       const isJual = (tipe === 'KELUAR_ECER' || tipe === 'KELUAR_GROSIR');
       let hargaJual = 0;
@@ -622,14 +658,27 @@
       if (totalRendah > 0) badge.textContent = totalRendah;
     }
 
+    function refreshSemuaLaporan() {
+      muatLaporanStok();
+      muatProdukTerlaris();
+      muatRingkasanBulanan();
+      muatLaporanKeuangan();
+    }
+
     function muatLaporanStok() {
       tampilkanLoading(true, "Memuat laporan...");
-      panggilAPI('ambilSemuaStok', []).then(data => {
+      const lokFilter = getFilterLokasiAktif();
+      panggilAPI('ambilSemuaStok', [lokFilter]).then(data => {
         tampilkanLoading(false);
         perbaruiBadgeStokRendah(data);
 
+        let lokasiTampil = daftarLokasiCache;
+        if (lokFilter && lokFilter !== 'SEMUA') {
+          lokasiTampil = daftarLokasiCache.filter(l => l.id === lokFilter);
+        }
+
         const thead = document.getElementById('thead-laporan-stok');
-        const kolomHeaderLokasi = daftarLokasiCache.map(l => `<th class="px-3 py-3 text-center">${l.id}</th>`).join('');
+        const kolomHeaderLokasi = lokasiTampil.map(l => `<th class="px-3 py-3 text-center">${l.pj || formatPJ(l.id)}</th>`).join('');
         thead.innerHTML = `<tr><th class="px-4 py-3">Produk</th>${kolomHeaderLokasi}<th class="px-4 py-3 text-center">Total</th></tr>`;
 
         const tbody = document.getElementById('tabel-laporan');
@@ -638,13 +687,13 @@
         let rincianPeringatanPerLokasi = {};
 
         if (daftarSku.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="${daftarLokasiCache.length + 2}" class="px-4 py-6 text-center text-[#6F4E37]">Belum ada data.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="${lokasiTampil.length + 2}" class="px-4 py-6 text-center text-[#6F4E37]">Belum ada data.</td></tr>`;
         } else {
           tbody.innerHTML = daftarSku.map(sku => {
             totalStokSemua += data[sku].Total;
             const min = data[sku].stokMinimum || 0;
 
-            const kolomNilaiLokasi = daftarLokasiCache.map(l => {
+            const kolomNilaiLokasi = lokasiTampil.map(l => {
               const stokLok = data[sku][l.id] || 0;
               const isMenipis = min > 0 && stokLok <= min;
               if (isMenipis) {
@@ -669,7 +718,7 @@
           banner.classList.remove('hidden');
           let htmlBanner = `⚠️ <b>Peringatan Stok Menipis Per Lokasi (Batas Minimum: Sheet Produk):</b><ul class="mt-1 space-y-1 list-disc pl-4">`;
           lokasiKeys.forEach(lokId => {
-            htmlBanner += `<li><b>${lokId}</b>: ${rincianPeringatanPerLokasi[lokId].join(', ')}</li>`;
+            htmlBanner += `<li><b>${formatPJ(lokId)}</b>: ${rincianPeringatanPerLokasi[lokId].join(', ')}</li>`;
           });
           htmlBanner += `</ul>`;
           banner.innerHTML = htmlBanner;
@@ -690,13 +739,11 @@
           ? 'flex-1 py-2 rounded-lg text-xs font-bold bg-[#4A3018] text-white transition-colors'
           : 'flex-1 py-2 rounded-lg text-xs font-bold bg-[#EEDDC8] text-[#4A3018] transition-colors';
       });
-      muatProdukTerlaris();
-      muatRingkasanBulanan();
-      muatLaporanKeuangan();
+      refreshSemuaLaporan();
     }
 
     function muatProdukTerlaris() {
-      panggilAPI('ambilProdukTerlaris', [periodeAktif]).then(data => {
+      panggilAPI('ambilProdukTerlaris', [periodeAktif, getFilterLokasiAktif()]).then(data => {
         document.getElementById('ringkasan-produk-terlaris').textContent = data.length;
         const ctx = document.getElementById('grafik-terlaris').getContext('2d');
         const label = data.map(d => d.nama);
@@ -713,7 +760,7 @@
             scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
           }
         });
-      }).catch(err => tampilkanPesan('Gagal memuat grafik produk terlaris.', false));
+      }).catch(err => {});
     }
 
     function formatRupiah(angka) {
@@ -721,11 +768,11 @@
     }
 
     function muatLaporanKeuangan() {
-      panggilAPI('ambilLaporanKeuangan', [periodeAktif]).then(res => {
+      panggilAPI('ambilLaporanKeuangan', [periodeAktif, null, getFilterLokasiAktif()]).then(res => {
         const tbody = document.getElementById('tabel-keuangan');
         tbody.innerHTML = res.perLokasi.length === 0
           ? `<tr><td colspan="4" class="px-2 py-3 text-center text-[#6F4E37]">Belum ada data.</td></tr>`
-          : res.perLokasi.map(r => `<tr><td class="px-2 py-2 font-semibold">${r.namaLokasi}</td><td class="px-2 py-2 text-right">${formatRupiah(r.omsetEcer)}</td><td class="px-2 py-2 text-right">${formatRupiah(r.omsetGrosir)}</td><td class="px-2 py-2 text-right font-bold">${formatRupiah(r.omsetTotal)}</td></tr>`).join('');
+          : res.perLokasi.map(r => `<tr><td class="px-2 py-2 font-semibold">${r.namaLokasi || formatPJLengkap(r.idLokasi)}</td><td class="px-2 py-2 text-right">${formatRupiah(r.omsetEcer)}</td><td class="px-2 py-2 text-right">${formatRupiah(r.omsetGrosir)}</td><td class="px-2 py-2 text-right font-bold">${formatRupiah(r.omsetTotal)}</td></tr>`).join('');
 
         const tfoot = document.getElementById('tabel-keuangan-total');
         tfoot.innerHTML = `<tr class="bg-[#EEDDC8] font-bold"><td class="px-2 py-2">TOTAL</td><td class="px-2 py-2 text-right">${formatRupiah(res.grandTotal.omsetEcer)}</td><td class="px-2 py-2 text-right">${formatRupiah(res.grandTotal.omsetGrosir)}</td><td class="px-2 py-2 text-right">${formatRupiah(res.grandTotal.omsetTotal)}</td></tr>`;
@@ -733,29 +780,51 @@
     }
 
     function muatRingkasanBulanan() {
-      panggilAPI('ambilRingkasanPenjualan', [periodeAktif]).then(data => {
+      const lokFilter = getFilterLokasiAktif();
+      panggilAPI('ambilRingkasanPenjualan', [periodeAktif, null, lokFilter]).then(data => {
         const tbody = document.getElementById('tabel-penjualan');
         tbody.innerHTML = data.length === 0
           ? `<tr><td colspan="5" class="px-2 py-3 text-center text-[#6F4E37]">Belum ada data.</td></tr>`
-          : data.map(r => `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.idLokasi}</td><td class="px-2 py-2 text-center">${r.ecer}</td><td class="px-2 py-2 text-center">${r.grosir}</td><td class="px-2 py-2 text-center font-bold">${r.total}</td></tr>`).join('');
+          : data.map(r => `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.namaLokasi || formatPJ(r.idLokasi)}</td><td class="px-2 py-2 text-center">${r.ecer}</td><td class="px-2 py-2 text-center">${r.grosir}</td><td class="px-2 py-2 text-center font-bold">${r.total}</td></tr>`).join('');
       }).catch(() => {});
 
-      panggilAPI('ambilRingkasanBarangMasuk', [periodeAktif]).then(data => {
+      panggilAPI('ambilRingkasanBarangMasuk', [periodeAktif, null, lokFilter]).then(data => {
         const tbody = document.getElementById('tabel-barang-masuk');
         tbody.innerHTML = data.length === 0
           ? `<tr><td colspan="4" class="px-2 py-3 text-center text-[#6F4E37]">Belum ada data.</td></tr>`
           : data.map(r => {
               const sumberTeks = r.sumber === 'Supplier' ? (r.namaSupplier || 'Supplier') : 'Penjahit';
-              return `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.idLokasi}</td><td class="px-2 py-2">${sumberTeks}</td><td class="px-2 py-2 text-center font-bold">${r.qty}</td></tr>`;
+              return `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.namaLokasi || formatPJ(r.idLokasi)}</td><td class="px-2 py-2">${sumberTeks}</td><td class="px-2 py-2 text-center font-bold">${r.qty}</td></tr>`;
             }).join('');
       }).catch(() => {});
 
-      panggilAPI('ambilRingkasanTransfer', [periodeAktif]).then(data => {
+      panggilAPI('ambilRingkasanTransfer', [periodeAktif, null, lokFilter]).then(data => {
         const tbody = document.getElementById('tabel-transfer');
         tbody.innerHTML = data.length === 0
           ? `<tr><td colspan="4" class="px-2 py-3 text-center text-[#6F4E37]">Belum ada data.</td></tr>`
-          : data.map(r => `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.dari}</td><td class="px-2 py-2">${r.ke}</td><td class="px-2 py-2 text-center font-bold">${r.qty}</td></tr>`).join('');
+          : data.map(r => `<tr><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${r.namaDari || formatPJ(r.dari)}</td><td class="px-2 py-2">${r.namaKe || formatPJ(r.ke)}</td><td class="px-2 py-2 text-center font-bold">${r.qty}</td></tr>`).join('');
       }).catch(() => {});
+    }
+
+    function unduhPDFLaporan() {
+      tampilkanLoading(true, "Menyiapkan file PDF...");
+      panggilAPI('unduhLaporanPDF', [periodeAktif, getFilterLokasiAktif()]).then(res => {
+        tampilkanLoading(false);
+        if (res.sukses && res.fileBase64) {
+          const a = document.createElement('a');
+          a.href = 'data:application/pdf;base64,' + res.fileBase64;
+          a.download = res.namaFile || `Laporan_${periodeAktif}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          tampilkanPesan('File PDF Laporan berhasil diunduh!', true);
+        } else {
+          tampilkanPesan(res.pesan || 'Gagal mengunduh PDF.', false);
+        }
+      }).catch(err => {
+        tampilkanLoading(false);
+        tampilkanPesan('Gagal membuat PDF. Coba lagi.', false);
+      });
     }
 
     function kirimLaporanEmail() {
@@ -794,7 +863,7 @@
 
     function unduhBarcode() {
       const teks = document.getElementById('teks-barcode').value.trim().toUpperCase();
-      if (!teks) return tampilkanPesan("Ketik ID Produk dulu!", false);
+      if (!teks) return tampilkanPesan("Pilih ID Produk dulu!", false);
       const svgEl = document.getElementById('svg-barcode');
       const svgData = new XMLSerializer().serializeToString(svgEl);
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -817,10 +886,7 @@
       img.src = url;
     }
 
-    // ===== PWA: registrasi service worker + tombol Install kustom (Android/Chrome/Edge) =====
-    // Catatan: event 'beforeinstallprompt' cuma didukung browser berbasis Chromium. Di iOS
-    // Safari tidak ada API ini -- user tetap harus install manual lewat menu Share > "Add to
-    // Home Screen", tidak bisa dipicu dari tombol.
+    // ===== PWA: registrasi service worker =====
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('service-worker.js').catch((e) => console.log('Gagal daftar service worker:', e));
