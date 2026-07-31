@@ -886,10 +886,34 @@
       img.src = url;
     }
 
-    // ===== PWA: registrasi service worker =====
+    // ===== PWA: registrasi service worker & auto-update =====
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js').catch((e) => console.log('Gagal daftar service worker:', e));
+        navigator.serviceWorker.register('service-worker.js').then((registration) => {
+          // Paksa cek update service worker dari server setiap kali app dibuka
+          registration.update();
+
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (!newWorker) return;
+
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[PWA] Versi baru ditemukan & terpasang. Memuat ulang...');
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
+        }).catch((e) => console.log('Gagal daftar service worker:', e));
+
+        // Jika controller berubah (Service Worker baru mengambil alih), reload halaman otomatis
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
       });
     }
 

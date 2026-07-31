@@ -3,7 +3,7 @@
 // Strategy: Cache First untuk asset lokal, Network Only untuk API
 // ============================================================
 
-const CACHE_NAME = 'faminis-stok-v2';
+const CACHE_NAME = 'faminis-stok-v3';
 const OFFLINE_URL = './offline.html';
 
 // Semua asset statis yang di-pre-cache saat install
@@ -116,6 +116,37 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Network-First khusus untuk Navigasi Halaman Utama (Index.html) agar PWA langsung mendapat versi terbaru dari GitHub Pages
+  const isNavigation = event.request.mode === 'navigate' || 
+                       url.pathname.endsWith('/Index.html') || 
+                       url.pathname.endsWith('/') || 
+                       url.pathname === '';
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.ok) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+            return caches.match(OFFLINE_URL).then((offlinePage) => {
+              return offlinePage || new Response(
+                '<h1>Offline</h1><p>Buka ulang saat ada koneksi.</p>',
+                { headers: { 'Content-Type': 'text/html' } }
+              );
+            });
+          });
+        })
     );
     return;
   }
