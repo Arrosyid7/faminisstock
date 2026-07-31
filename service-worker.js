@@ -3,7 +3,7 @@
 // Strategy: Cache First untuk asset lokal, Network Only untuk API
 // ============================================================
 
-const CACHE_NAME = 'faminis-stok-v3';
+const CACHE_NAME = 'faminis-stok-v4';
 const OFFLINE_URL = './offline.html';
 
 // Semua asset statis yang di-pre-cache saat install

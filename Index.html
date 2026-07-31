@@ -39,7 +39,6 @@
   <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
 
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
   <style>
@@ -162,19 +161,6 @@
       </div>
     </div>
 
-    <div id="tampilan-buat-qr" class="p-4 hidden flex-grow pb-24">
-      <div class="bg-white p-5 rounded-xl shadow-md border border-[#D6C5B3] text-center mt-2">
-        <h4 class="font-bold mb-4 text-[#4A3018] text-xl">Generator Label Barcode</h4>
-        <select id="teks-barcode" onchange="buatGambarBarcode()" class="w-full mb-6 p-3 border-2 border-[#EEDDC8] rounded-xl bg-white text-center font-bold text-lg focus:outline-none focus:border-[#8B5A2B]">
-          <option value="">-- Pilih SKU Produk --</option>
-        </select>
-        <div class="barcode-wrap flex justify-center bg-[#FDF8F3] py-6 rounded-xl mb-6 border border-[#EEDDC8] shadow-inner">
-          <svg id="svg-barcode"></svg>
-        </div>
-        <button onclick="unduhBarcode()" class="w-full bg-[#8B5A2B] text-white p-4 rounded-xl font-bold shadow-md active:bg-[#6F4E37] text-lg">Unduh Label (PNG)</button>
-      </div>
-    </div>
-
     <div id="tampilan-laporan" class="p-4 hidden flex-grow pb-24">
       <div class="flex justify-between items-center mb-4 gap-2">
         <div>
@@ -258,7 +244,6 @@
 
     <nav id="navigasi-bawah" class="hidden fixed bottom-0 w-full max-w-md bg-white border-t border-[#D6C5B3] flex justify-around text-xs font-bold text-gray-400 shadow-[0_-5px_15px_rgba(74,48,24,0.1)] pb-safe z-50">
       <button id="nav-transaksi" onclick="gantiTampilan('tampilan-transaksi')" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors"><div class="text-2xl mb-1">📦</div>Transaksi</button>
-      <button id="nav-buat-qr" onclick="gantiTampilan('tampilan-buat-qr'); buatGambarBarcode();" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors"><div class="text-2xl mb-1">🏷️</div>Label</button>
       <button id="nav-laporan" onclick="gantiTampilan('tampilan-laporan'); refreshSemuaLaporan();" class="flex-1 py-3 text-center hover:text-[#8B5A2B] focus:text-[#8B5A2B] transition-colors">
         <div class="text-2xl mb-1 relative inline-block">
           📊
@@ -423,12 +408,12 @@
     }
 
     function gantiTampilan(idTampilan) {
-      ['tampilan-login', 'tampilan-transaksi', 'tampilan-buat-qr', 'tampilan-laporan'].forEach(id => {
+      ['tampilan-login', 'tampilan-transaksi', 'tampilan-laporan'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       });
       document.getElementById(idTampilan).classList.remove('hidden');
-      ['nav-transaksi', 'nav-buat-qr', 'nav-laporan'].forEach(id => {
+      ['nav-transaksi', 'nav-laporan'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('text-[#8B5A2B]');
       });
@@ -475,13 +460,9 @@
     function muatDaftarProdukAPI() {
       panggilAPI('ambilDaftarProduk', []).then(produkList => {
         const selTrx = document.getElementById('input-sku');
-        const selLabel = document.getElementById('teks-barcode');
-        
         let htmlStr = `<option value="">-- Pilih SKU Produk --</option>`;
         htmlStr += produkList.map(p => `<option value="${p.sku}">${p.label}</option>`).join('');
-        
         if (selTrx) selTrx.innerHTML = htmlStr;
-        if (selLabel) selLabel.innerHTML = htmlStr;
       }).catch(() => {});
     }
 
@@ -532,7 +513,6 @@
 
         // SEMUA ruko/toko bisa lihat Laporan masing-masing & download PDF!
         document.getElementById('nav-transaksi').style.display = (p === 'owner' ? 'none' : 'block');
-        document.getElementById('nav-buat-qr').style.display = (p === 'master' ? 'block' : 'none');
         document.getElementById('nav-laporan').style.display = 'block';
 
         if (btnKirimLaporan) {
@@ -546,12 +526,9 @@
           subJudul.textContent = `Laporan untuk: ${formatPJLengkap(getFilterLokasiAktif())}`;
         }
 
-        if (p === 'owner') {
+        if (p === 'owner' || p === 'master') {
           gantiTampilan('tampilan-laporan');
           refreshSemuaLaporan();
-        } else if (p === 'master') {
-          gantiTampilan('tampilan-buat-qr');
-          buatGambarBarcode();
         } else {
           gantiTampilan('tampilan-transaksi');
         }
@@ -843,48 +820,6 @@
       window.location.reload();
     }
 
-    // ===== Generator Barcode (garis-garis, format Code128) =====
-    function buatGambarBarcode() {
-      const t = document.getElementById('teks-barcode').value.trim().toUpperCase() || 'FAMINIS';
-      try {
-        JsBarcode("#svg-barcode", t, {
-          format: "CODE128",
-          lineColor: "#4A3018",
-          width: 2,
-          height: 90,
-          displayValue: true,
-          fontSize: 16,
-          margin: 10
-        });
-      } catch (e) {
-        // karakter tidak didukung format Code128, abaikan sampai user selesai mengetik
-      }
-    }
-
-    function unduhBarcode() {
-      const teks = document.getElementById('teks-barcode').value.trim().toUpperCase();
-      if (!teks) return tampilkanPesan("Pilih ID Produk dulu!", false);
-      const svgEl = document.getElementById('svg-barcode');
-      const svgData = new XMLSerializer().serializeToString(svgEl);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      const img = new Image();
-      img.onload = function () {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width || 400;
-        canvas.height = img.height || 150;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-        const a = document.createElement('a');
-        a.download = 'Barcode_' + teks + '.png';
-        a.href = canvas.toDataURL('image/png');
-        a.click();
-      };
-      img.src = url;
-    }
 
     // ===== PWA: registrasi service worker & auto-update =====
     if ('serviceWorker' in navigator) {
