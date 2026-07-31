@@ -547,8 +547,35 @@ function ambilDaftarPengguna() {
   return hasil;
 }
 
-function ambilDaftarProduk() {
+function ambilDaftarProduk(idLokasiFilter) {
   const ss = getDb();
+
+  // Jika idLokasiFilter spesifik (misal 'TOKO', 'RUKO1', 'RUKO2', dll.) dan bukan 'SEMUA'
+  if (idLokasiFilter && idLokasiFilter !== 'SEMUA') {
+    const namaSheetStok = dapatkanNamaSheetStok(idLokasiFilter);
+    const sheetStok = ss.getSheetByName(namaSheetStok);
+    if (sheetStok) {
+      const dataStok = sheetStok.getDataRange().getValues();
+      const hasil = [];
+      for (let i = 1; i < dataStok.length; i++) {
+        const sku = dataStok[i][0] ? dataStok[i][0].toString().trim() : '';
+        let nama = dataStok[i][1] ? dataStok[i][1].toString().trim() : '';
+        const stok = parseFloat(dataStok[i][2]) || 0;
+        if (sku && stok > 0) {
+          if (!nama) nama = ambilNamaProdukDariSku(sku);
+          hasil.push({
+            sku: sku,
+            nama: nama,
+            stok: stok,
+            label: `${sku} - ${nama} (Stok: ${stok} pcs)`
+          });
+        }
+      }
+      return hasil;
+    }
+  }
+
+  // Fallback / Untuk 'SEMUA' (Master / Restok): ambil dari sheet Produk
   const sheet = ss.getSheetByName('Produk');
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
@@ -560,6 +587,7 @@ function ambilDaftarProduk() {
       hasil.push({
         sku: sku,
         nama: nama,
+        stok: null,
         label: `${sku} - ${nama}`
       });
     }

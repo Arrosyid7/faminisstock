@@ -134,7 +134,7 @@
         <div id="blok-transfer" class="hidden mb-4 space-y-3 bg-[#EEDDC8] p-3 rounded-lg border border-[#D6C5B3]">
           <div>
             <label class="block text-[10px] font-bold text-[#6F4E37] uppercase mb-1">Dari Lokasi</label>
-            <select id="input-dari-lokasi" class="w-full p-3 border border-[#D6C5B3] rounded-lg bg-white font-semibold text-[#3E2723]"></select>
+            <select id="input-dari-lokasi" onchange="muatDaftarProdukAPI()" class="w-full p-3 border border-[#D6C5B3] rounded-lg bg-white font-semibold text-[#3E2723]"></select>
           </div>
           <div>
             <label class="block text-[10px] font-bold text-[#6F4E37] uppercase mb-1">Ke Lokasi</label>
@@ -458,11 +458,34 @@
     }
 
     function muatDaftarProdukAPI() {
-      panggilAPI('ambilDaftarProduk', []).then(produkList => {
-        const selTrx = document.getElementById('input-sku');
+      if (!penggunaSaatIni) return;
+      const tipeSelect = document.getElementById('input-tipe');
+      const tipe = tipeSelect ? tipeSelect.value : '';
+
+      let idLokasi = penggunaSaatIni.id_lokasi || 'SEMUA';
+
+      if (tipe === 'TRANSFER') {
+        const selDari = document.getElementById('input-dari-lokasi');
+        if (selDari && selDari.value) idLokasi = selDari.value;
+      } else if (tipe === 'MASUK_RESTOK') {
+        idLokasi = 'SEMUA';
+      }
+
+      const selTrx = document.getElementById('input-sku');
+      if (!selTrx) return;
+      const skuDipilihSebelumnya = selTrx.value;
+
+      panggilAPI('ambilDaftarProduk', [idLokasi]).then(produkList => {
         let htmlStr = `<option value="">-- Pilih SKU Produk --</option>`;
-        htmlStr += produkList.map(p => `<option value="${p.sku}">${p.label}</option>`).join('');
-        if (selTrx) selTrx.innerHTML = htmlStr;
+        if (produkList.length === 0) {
+          htmlStr = `<option value="">-- Tidak ada produk dengan stok tersedia di ruko/toko ini --</option>`;
+        } else {
+          htmlStr += produkList.map(p => `<option value="${p.sku}">${p.label}</option>`).join('');
+        }
+        selTrx.innerHTML = htmlStr;
+        if (skuDipilihSebelumnya && Array.from(selTrx.options).some(opt => opt.value === skuDipilihSebelumnya)) {
+          selTrx.value = skuDipilihSebelumnya;
+        }
       }).catch(() => {});
     }
 
@@ -549,6 +572,7 @@
       document.getElementById('blok-transfer').classList.toggle('hidden', tipe !== 'TRANSFER');
       document.getElementById('blok-restok').classList.toggle('hidden', tipe !== 'MASUK_RESTOK');
       if (tipe === 'MASUK_RESTOK') ubahTampilanSumberMasuk();
+      muatDaftarProdukAPI();
     }
 
     function ubahTampilanSumberMasuk() {
@@ -586,6 +610,7 @@
           document.getElementById('input-nama-supplier').value = '';
           document.getElementById('input-harga-jual').value = '';
           document.getElementById('input-catatan').value = '';
+          muatDaftarProdukAPI();
         } else {
           tampilkanPesan(res.pesan, false);
         }
