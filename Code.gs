@@ -382,7 +382,7 @@ function pastikanSupplierTercatat(ss, namaSupplier) {
 // ==========================================
 //
 // CATATAN PENTING (versi GitHub Pages):
-// Sekarang Code.gs ini berperan sebagai API backend saja. Frontend (Index.html) tidak lagi
+// Sekarang Code.gs ini berperan sebagai API backend saja. Frontend (index.html) tidak lagi
 // wajib dibuka lewat script.google.com -- boleh di-hosting di mana saja (GitHub Pages, dll),
 // asalkan dia memanggil URL Web App ini lewat fetch(). Karena itu, doGet/doPost di bawah ini
 // dibuat jadi "router" umum: menerima nama aksi + daftar parameter, lalu memanggil fungsi Apps

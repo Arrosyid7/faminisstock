@@ -9,7 +9,7 @@ const OFFLINE_URL = './offline.html';
 // Semua asset statis yang di-pre-cache saat install
 const ASSETS_TO_CACHE = [
   './',
-  './Index.html',
+  './index.html',
   './manifest.json',
   './offline.html',
   './icons/icon-48.png',
@@ -120,9 +120,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-First khusus untuk Navigasi Halaman Utama (Index.html) agar PWA langsung mendapat versi terbaru dari GitHub Pages
+  // Network-First khusus untuk Navigasi Halaman Utama (index.html) agar PWA langsung mendapat versi terbaru dari GitHub Pages
   const isNavigation = event.request.mode === 'navigate' || 
-                       url.pathname.endsWith('/Index.html') || 
+                       url.pathname.endsWith('/index.html') || 
                        url.pathname.endsWith('/') || 
                        url.pathname === '';
 
